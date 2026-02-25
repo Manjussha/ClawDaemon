@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClawDaemon 🐾</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#e6edf3;--muted:#8b949e;
+  --primary:#58a6ff;--success:#3fb950;--warn:#d29922;--danger:#f85149;--purple:#bc8cff;
+  --sidebar-w:220px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:hidden;font-size:14px}
+/* Sidebar */
+#sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+#sidebar header{padding:16px;border-bottom:1px solid var(--border);font-size:16px;font-weight:700;color:var(--primary)}
+#sidebar header span{opacity:.6;font-size:12px;display:block;font-weight:400;color:var(--muted)}
+#nav{flex:1;overflow-y:auto;padding:8px 0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 16px;cursor:pointer;border-radius:6px;margin:1px 8px;color:var(--muted);transition:all .15s}
+.nav-item:hover{background:rgba(88,166,255,.1);color:var(--text)}
+.nav-item.active{background:rgba(88,166,255,.15);color:var(--primary)}
+.nav-item .icon{font-size:16px;width:20px;text-align:center}
+#sidebar footer{padding:12px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)}
+/* Main */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:12px}
+#topbar h2{font-size:16px;font-weight:600;flex:1}
+.badge{padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-green{background:rgba(63,185,80,.2);color:var(--success)}
+.badge-yellow{background:rgba(210,153,34,.2);color:var(--warn)}
+.badge-red{background:rgba(248,81,73,.2);color:var(--danger)}
+.badge-blue{background:rgba(88,166,255,.2);color:var(--primary)}
+.btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-size:13px;transition:all .15s}
+.btn:hover{border-color:var(--primary);color:var(--primary)}
+.btn-primary{background:var(--primary);color:#000;border-color:var(--primary)}
+.btn-primary:hover{background:#79c0ff;color:#000;border-color:#79c0ff}
+.btn-danger{border-color:var(--danger);color:var(--danger)}
+.btn-danger:hover{background:var(--danger);color:#fff}
+.btn-sm{padding:3px 10px;font-size:12px}
+#content{flex:1;overflow-y:auto;padding:20px}
+/* Pages */
+.page{display:none}
+.page.active{display:block}
+/* Stats row */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px}
+.stat-card .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.stat-card .value{font-size:28px;font-weight:700;margin-top:4px}
+.stat-card .sub{font-size:11px;color:var(--muted);margin-top:2px}
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:16px}
+.card-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-weight:600}
+.card-body{padding:16px}
+/* Tables */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;padding:8px 12px;border-bottom:1px solid var(--border)}
+.tbl td{padding:8px 12px;border-bottom:1px solid rgba(48,54,61,.5);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(255,255,255,.02)}
+/* Log stream */
+#log-stream{background:#0a0e14;border:1px solid var(--border);border-radius:6px;height:320px;overflow-y:auto;padding:10px;font-family:'Courier New',monospace;font-size:12px;line-height:1.6}
+.log-line{white-space:pre-wrap;word-break:break-all}
+.log-line.info{color:#79c0ff}
+.log-line.warn{color:var(--warn)}
+.log-line.error{color:var(--danger)}
+.log-line.success{color:var(--success)}
+.log-line.muted{color:var(--muted)}
+/* WS status dot */
+#ws-dot{width:8px;height:8px;border-radius:50%;background:var(--danger);display:inline-block;margin-right:6px;transition:background .3s}
+#ws-dot.connected{background:var(--success)}
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:500px;max-width:95vw;max-height:90vh;display:flex;flex-direction:column}
+.modal-header{padding:16px 20px;border-bottom:1px solid var(--border);font-size:16px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.modal-body{padding:20px;overflow-y:auto;flex:1}
+.modal-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+/* Forms */
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+.form-group input,.form-group textarea,.form-group select{width:100%;background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;outline:none;font-family:inherit}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:var(--primary)}
+.form-group textarea{resize:vertical;min-height:80px}
+/* Budget bar */
+.budget-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.1);overflow:hidden;margin-top:4px}
+.budget-fill{height:100%;border-radius:3px;transition:width .5s}
+/* Canvas chart area */
+.chart-wrap{position:relative;height:180px}
+/* Empty state */
+.empty{text-align:center;padding:40px;color:var(--muted)}
+.empty .emoji{font-size:36px;margin-bottom:8px}
+/* Pill status */
+.pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.pill-running{background:rgba(88,166,255,.2);color:var(--primary)}
+.pill-pending{background:rgba(139,148,158,.2);color:var(--muted)}
+.pill-done{background:rgba(63,185,80,.2);color:var(--success)}
+.pill-failed{background:rgba(248,81,73,.2);color:var(--danger)}
+.pill-limit{background:rgba(210,153,34,.2);color:var(--warn)}
+.pill-paused{background:rgba(188,140,255,.2);color:var(--purple)}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav id="sidebar">
+  <header>🐾 ClawDaemon<span id="ver">dev</span></header>
+  <div id="nav">
+    <div class="nav-item active" data-page="dashboard"><span class="icon">📊</span>Dashboard</div>
+    <div class="nav-item" data-page="tasks"><span class="icon">📋</span>Tasks</div>
+    <div class="nav-item" data-page="workers"><span class="icon">⚙️</span>Workers</div>
+    <div class="nav-item" data-page="projects"><span class="icon">📁</span>Projects</div>
+    <div class="nav-item" data-page="scheduler"><span class="icon">🕐</span>Scheduler</div>
+    <div class="nav-item" data-page="logs"><span class="icon">📜</span>Logs</div>
+    <div class="nav-item" data-page="character"><span class="icon">🎭</span>Character</div>
+    <div class="nav-item" data-page="skills"><span class="icon">🎯</span>Skills</div>
+    <div class="nav-item" data-page="webhooks"><span class="icon">🔗</span>Webhooks</div>
+    <div class="nav-item" data-page="templates"><span class="icon">📝</span>Templates</div>
+    <div class="nav-item" data-page="usage"><span class="icon">📈</span>Token Usage</div>
+    <div class="nav-item" data-page="settings"><span class="icon">⚙️</span>Settings</div>
+  </div>
+  <footer>
+    <span id="ws-dot"></span><span id="ws-status">Disconnected</span>
+    <div style="margin-top:4px"><span id="client-count">0</span> clients</div>
+  </footer>
+</nav>
+
+<!-- Main area -->
+<div id="main">
+  <div id="topbar">
+    <h2 id="page-title">Dashboard</h2>
+    <button class="btn btn-sm" onclick="openModal('add-task-modal')">+ Add Task</button>
+    <button class="btn btn-sm" onclick="openModal('add-worker-modal')">+ Add Worker</button>
+    <button class="btn btn-sm" onclick="restartDaemon()">↺ Restart</button>
+    <button class="btn btn-sm btn-danger" onclick="logout()">Logout</button>
+  </div>
+  <div id="content">
+
+    <!-- Dashboard page -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-row" id="stats-row">
+        <div class="stat-card"><div class="label">Workers</div><div class="value" id="stat-workers">—</div><div class="sub">active / total</div></div>
+        <div class="stat-card"><div class="label">Tasks Today</div><div class="value" id="stat-tasks">—</div><div class="sub">running / queued</div></div>
+        <div class="stat-card"><div class="label">Tokens Today</div><div class="value" id="stat-tokens">—</div><div class="sub">estimated</div></div>
+        <div class="stat-card"><div class="label">Budget Zone</div><div class="value" id="stat-zone">—</div><div class="sub">overall</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Live Log Stream
+          <div style="display:flex;gap:8px">
+            <select id="log-filter-worker" style="background:#0d1117;border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 6px;font-size:12px">
+              <option value="">All workers</option>
+            </select>
+            <button class="btn btn-sm" onclick="document.getElementById('log-stream').innerHTML=''">Clear</button>
+          </div>
+        </div>
+        <div class="card-body"><div id="log-stream"></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card">
+          <div class="card-header">Recent Tasks</div>
+          <div class="card-body" id="recent-tasks-body">
+            <div class="empty"><div class="emoji">📋</div>No tasks yet</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">Worker Status</div>
+          <div class="card-body" id="worker-status-body">
+            <div class="empty"><div class="emoji">⚙️</div>No workers</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tasks page -->
+    <div class="page" id="page-tasks">
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <select id="task-status-filter" class="btn btn-sm" onchange="loadTasks()" style="cursor:pointer">
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="running">Running</option>
+          <option value="done">Done</option>
+          <option value="failed">Failed</option>
+          <option value="limit">Rate Limited</option>
+        </select>
+        <button class="btn btn-sm btn-primary" onclick="openModal('add-task-modal')">+ Add Task</button>
+      </div>
+      <div class="card">
+        <div class="card-header">Tasks<span id="task-count" class="badge badge-blue" style="margin-left:8px">0</span></div>
+        <table class="tbl">
+          <thead><tr><th>ID</th><th>Title</th><th>Status</th><th>Worker</th><th>Priority</th><th>Created</th><th></th></tr></thead>
+          <tbody id="tasks-tbody"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Workers page -->
+    <div class="page" id="page-workers">
+      <div style="margin-bottom:16px">
+        <button class="btn btn-sm btn-primary" onclick="openModal('add-worker-modal')">+ Add Worker</button>
+      </div>
+      <div class="card">
+        <div class="card-header">Workers</div>
+        <table class="tbl">
+          <thead><tr><th>ID</th><th>Name</th><th>CLI Type</th><th>Status</th><th>Max Parallel</th><th>Budget Zone</th><th></th></tr></thead>
+          <tbody id="workers-tbody"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Projects page -->
+    <div class="page" id="page-projects">
+      <div style="margin-bottom:16px">
+        <button class="btn btn-sm btn-primary" onclick="openModal('add-project-modal')">+ Add Project</button>
+      </div>
+      <div class="card">
+        <div class="card-header">Projects</div>
+        <table class="tbl">
+          <thead><tr><th>ID</th><th>Name</th><th>Path</th><th>CLI Type</th><th>Created</th><th></th></tr></thead>
+          <tbody id="projects-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Scheduler page -->
+    <div class="page" id="page-scheduler">
+      <div style="margin-bottom:16px">
+        <button class="btn btn-sm btn-primary" onclick="openModal('add-schedule-modal')">+ Add Schedule</button>
+      </div>
+      <div class="card">
+        <div class="card-header">Scheduled Jobs</div>
+        <table class="tbl">
+          <thead><tr><th>ID</th><th>Name</th><th>Cron</th><th>Prompt</th><th>Enabled</th><th>Next Run</th><th></th></tr></thead>
+          <tbody id="schedules-tbody"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Logs page -->
+    <div class="page" id="page-logs">
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input id="logs-task-filter" type="number" placeholder="Task ID" style="width:100px;background:#0d1117;border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--text)">
+        <select id="logs-level-filter" style="background:#0d1117;border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px">
+          <option value="">All levels</option>
+          <option>info</option><option>warn</option><option>error</option>
+        </select>
+        <button class="btn btn-sm" onclick="loadLogs()">Search</button>
+      </div>
+      <div class="card">
+        <div class="card-header">Logs</div>
+        <table class="tbl">
+          <thead><tr><th>Time</th><th>Worker</th><th>Task</th><th>Level</th><th>Message</th></tr></thead>
+          <tbody id="logs-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody>
+        </table>
+        <div style="padding:12px;display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn btn-sm" id="logs-prev" onclick="logsPage--; loadLogs()">← Prev</button>
+          <span id="logs-page-info" style="line-height:28px;font-size:12px;color:var(--muted)">Page 1</span>
+          <button class="btn btn-sm" id="logs-next" onclick="logsPage++; loadLogs()">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Character page -->
+    <div class="page" id="page-character">
+      <div class="card">
+        <div class="card-header">Character Files
+          <select id="char-file-select" style="background:#0d1117;border:1px solid var(--border);color:var(--text);border-radius:4px;padding:4px 8px" onchange="loadCharFile()">
+            <option value="identity">IDENTITY.md</option>
+            <option value="thinking">THINKING.md</option>
+            <option value="rules">RULES.md</option>
+            <option value="memory">MEMORY.md</option>
+          </select>
+        </div>
+        <div class="card-body">
+          <textarea id="char-content" rows="20" style="width:100%;background:#0a0e14;border:1px solid var(--border);border-radius:6px;padding:10px;color:var(--text);font-family:'Courier New',monospace;font-size:12px;resize:vertical"></textarea>
+          <div style="margin-top:10px;text-align:right">
+            <button class="btn btn-primary" onclick="saveCharFile()">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Skills page -->
+    <div class="page" id="page-skills">
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="btn btn-sm btn-primary" onclick="openModal('add-skill-modal')">+ Add Skill</button>
+      </div>
+      <div style="display:grid;grid-template-columns:200px 1fr;gap:16px">
+        <div class="card" style="height:fit-content">
+          <div class="card-header">Skills</div>
+          <div id="skills-list" style="padding:8px">
+            <div class="empty"><div class="emoji">🎯</div>Loading…</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span id="skill-editor-title">Select a skill</span>
+            <button class="btn btn-sm btn-danger" id="skill-delete-btn" style="display:none" onclick="deleteSkill()">Delete</button>
+          </div>
+          <div class="card-body">
+            <textarea id="skill-content" rows="20" style="width:100%;background:#0a0e14;border:1px solid var(--border);border-radius:6px;padding:10px;color:var(--text);font-family:'Courier New',monospace;font-size:12px;resize:vertical"></textarea>
+            <div style="margin-top:10px;text-align:right">
+              <button class="btn btn-primary" id="skill-save-btn" style="display:none" onclick="saveSkill()">Save</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Webhooks page -->
+    <div class="page" id="page-webhooks">
+      <div style="margin-bottom:16px">
+        <button class="btn btn-sm btn-primary" onclick="openModal('add-webhook-modal')">+ Add Webhook</button>
+      </div>
+      <div class="card">
+        <div class="card-header">Outbound Webhooks</div>
+        <table class="tbl">
+          <thead><tr><th>ID</th><th>URL</th><th>Event</th><th>Enabled</th><th>Last Status</th><th></th></tr></thead>
+          <tbody id="webhooks-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Templates page -->
+    <div class="page" id="page-templates">
+      <div style="margin-bottom:16px">
+        <button class="btn btn-sm btn-primary" onclick="openModal('add-template-modal')">+ Add Template</button>
+      </div>
+      <div class="card">
+        <div class="card-header">Prompt Templates</div>
+        <table class="tbl">
+          <thead><tr><th>ID</th><th>Name</th><th>CLI Type</th><th>Preview</th><th></th></tr></thead>
+          <tbody id="templates-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Token Usage page -->
+    <div class="page" id="page-usage">
+      <div class="stats-row" id="usage-stats"></div>
+      <div class="card">
+        <div class="card-header">Daily Token Usage
+          <select id="usage-period" onchange="loadUsage()" style="background:#0d1117;border:1px solid var(--border);color:var(--text);border-radius:4px;padding:2px 6px;font-size:12px">
+            <option value="daily">Daily (7d)</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+        <div class="card-body"><div class="chart-wrap"><canvas id="usage-chart"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header">Budget Zones</div>
+        <div class="card-body" id="budget-zones"></div>
+      </div>
+    </div>
+
+    <!-- Settings page -->
+    <div class="page" id="page-settings">
+      <div class="card">
+        <div class="card-header">Settings</div>
+        <div class="card-body" id="settings-body">
+          <div class="empty"><div class="emoji">⚙️</div>Loading…</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- #content -->
+</div><!-- #main -->
+
+<!-- Add Task Modal -->
+<div class="modal-overlay" id="add-task-modal">
+  <div class="modal">
+    <div class="modal-header">Add Task <button class="btn btn-sm" onclick="closeModal('add-task-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Title</label><input id="task-title" placeholder="e.g. Fix login bug"></div>
+      <div class="form-group"><label>Prompt</label><textarea id="task-prompt" rows="5" placeholder="Describe what the AI should do…"></textarea></div>
+      <div class="form-group"><label>Priority (lower = higher priority)</label><input id="task-priority" type="number" value="5" min="1" max="10"></div>
+      <div class="form-group"><label>Worker (optional)</label><select id="task-worker"><option value="">Auto</option></select></div>
+      <div class="form-group"><label>Project (optional)</label><select id="task-project"><option value="">None</option></select></div>
+      <div class="form-group"><label>CLI Type</label>
+        <select id="task-cli">
+          <option value="claude">Claude Code</option>
+          <option value="gemini">Gemini CLI</option>
+          <option value="browser">Browser</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Skill (optional)</label>
+        <select id="task-skill">
+          <option value="">Auto-detect</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('add-task-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitTask()">Add Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Worker Modal -->
+<div class="modal-overlay" id="add-worker-modal">
+  <div class="modal">
+    <div class="modal-header">Add Worker <button class="btn btn-sm" onclick="closeModal('add-worker-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Name</label><input id="worker-name" placeholder="e.g. Claude-1"></div>
+      <div class="form-group"><label>CLI Type</label>
+        <select id="worker-cli">
+          <option value="claude">Claude Code</option>
+          <option value="gemini">Gemini CLI</option>
+          <option value="browser">Browser</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Work Directory</label><input id="worker-workdir" placeholder="/data/projects/myapp"></div>
+      <div class="form-group"><label>Max Parallel Tasks</label><input id="worker-parallel" type="number" value="1" min="1" max="10"></div>
+      <div class="form-group"><label>Daily Token Budget</label><input id="worker-budget" type="number" value="500000" min="1000"></div>
+      <div class="form-group"><label>Skill</label>
+        <select id="worker-skill"><option value="">None</option></select>
+      </div>
+      <div class="form-group"><label>Model (for Claude)</label><input id="worker-model" placeholder="claude-opus-4-5"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('add-worker-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitWorker()">Add Worker</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Project Modal -->
+<div class="modal-overlay" id="add-project-modal">
+  <div class="modal">
+    <div class="modal-header">Add Project <button class="btn btn-sm" onclick="closeModal('add-project-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Name</label><input id="project-name" placeholder="My App"></div>
+      <div class="form-group"><label>Path</label><input id="project-path" placeholder="/home/user/myapp"></div>
+      <div class="form-group"><label>Default CLI Type</label>
+        <select id="project-cli">
+          <option value="claude">Claude Code</option>
+          <option value="gemini">Gemini CLI</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Description</label><textarea id="project-desc" rows="3"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('add-project-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitProject()">Add Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Schedule Modal -->
+<div class="modal-overlay" id="add-schedule-modal">
+  <div class="modal">
+    <div class="modal-header">Add Schedule <button class="btn btn-sm" onclick="closeModal('add-schedule-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Name</label><input id="sched-name" placeholder="Daily review"></div>
+      <div class="form-group"><label>Cron Expression</label><input id="sched-cron" placeholder="0 9 * * *" value="0 9 * * *"></div>
+      <div class="form-group"><label>Prompt</label><textarea id="sched-prompt" rows="4" placeholder="What should the AI do?"></textarea></div>
+      <div class="form-group"><label>Priority</label><input id="sched-priority" type="number" value="5" min="1" max="10"></div>
+      <div class="form-group"><label>CLI Type</label>
+        <select id="sched-cli">
+          <option value="claude">Claude Code</option>
+          <option value="gemini">Gemini CLI</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('add-schedule-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitSchedule()">Add Schedule</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Webhook Modal -->
+<div class="modal-overlay" id="add-webhook-modal">
+  <div class="modal">
+    <div class="modal-header">Add Webhook <button class="btn btn-sm" onclick="closeModal('add-webhook-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>URL</label><input id="wh-url" placeholder="https://example.com/hook"></div>
+      <div class="form-group"><label>Event</label>
+        <select id="wh-event">
+          <option value="task.complete">task.complete</option>
+          <option value="task.failed">task.failed</option>
+          <option value="task.limit">task.limit</option>
+          <option value="budget.warning">budget.warning</option>
+          <option value="budget.critical">budget.critical</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Secret (optional)</label><input id="wh-secret" placeholder="HMAC signing secret"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('add-webhook-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitWebhook()">Add Webhook</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Template Modal -->
+<div class="modal-overlay" id="add-template-modal">
+  <div class="modal">
+    <div class="modal-header">Add Template <button class="btn btn-sm" onclick="closeModal('add-template-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Name</label><input id="tmpl-name" placeholder="Bug fix template"></div>
+      <div class="form-group"><label>CLI Type</label>
+        <select id="tmpl-cli">
+          <option value="claude">Claude Code</option>
+          <option value="gemini">Gemini CLI</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Prompt Template</label><textarea id="tmpl-prompt" rows="6" placeholder="Use {{PLACEHOLDER}} for variables"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('add-template-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitTemplate()">Add Template</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Skill Modal -->
+<div class="modal-overlay" id="add-skill-modal">
+  <div class="modal">
+    <div class="modal-header">Add Skill <button class="btn btn-sm" onclick="closeModal('add-skill-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Skill Name (slug, e.g. laravel-developer)</label><input id="new-skill-name" placeholder="my-skill"></div>
+      <div class="form-group"><label>Content (Markdown)</label><textarea id="new-skill-content" rows="8" placeholder="# My Skill&#10;You are an expert in…"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('add-skill-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitSkill()">Create Skill</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ────────────────────────────────────────────────────────────────────
+let ws = null;
+let wsReconnectTimer = null;
+let logsPage = 1;
+let currentSkill = '';
+let skillList = [];
+
+// CSRF token (read from cookie if present, else generate)
+function getCsrfToken() {
+  const m = document.cookie.match(/csrf_token=([^;]+)/);
+  return m ? m[1] : '';
+}
+
+// ── API helpers ──────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+  };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const res = await fetch('/api/v1' + path, opts);
+  if (res.status === 401) { location.href = '/login'; return null; }
+  return res.json();
+}
+
+function get(path) { return api('GET', path); }
+function post(path, b) { return api('POST', path, b); }
+function put(path, b) { return api('PUT', path, b); }
+function del(path) { return api('DELETE', path); }
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+const pageHandlers = {
+  dashboard: loadDashboard,
+  tasks: loadTasks,
+  workers: loadWorkers,
+  projects: loadProjects,
+  scheduler: loadSchedules,
+  logs: loadLogs,
+  character: loadCharFile,
+  skills: loadSkills,
+  webhooks: loadWebhooks,
+  templates: loadTemplates,
+  usage: loadUsage,
+  settings: loadSettings,
+};
+
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    const page = el.dataset.page;
+    document.getElementById('page-' + page).classList.add('active');
+    document.getElementById('page-title').textContent = el.textContent.trim();
+    if (pageHandlers[page]) pageHandlers[page]();
+  });
+});
+
+// ── WebSocket ────────────────────────────────────────────────────────────────
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws`);
+
+  ws.onopen = () => {
+    document.getElementById('ws-dot').classList.add('connected');
+    document.getElementById('ws-status').textContent = 'Connected';
+    clearTimeout(wsReconnectTimer);
+  };
+
+  ws.onclose = () => {
+    document.getElementById('ws-dot').classList.remove('connected');
+    document.getElementById('ws-status').textContent = 'Disconnected';
+    wsReconnectTimer = setTimeout(connectWS, 3000);
+  };
+
+  ws.onmessage = (e) => {
+    try { handleWSMessage(JSON.parse(e.data)); } catch {}
+  };
+}
+
+function handleWSMessage(msg) {
+  switch (msg.type) {
+    case 'log_line':
+      appendLog(msg);
+      break;
+    case 'worker_status':
+      updateWorkerStatus(msg);
+      break;
+    case 'task_update':
+    case 'task_complete':
+      refreshIfOnPage('dashboard', loadDashboard);
+      refreshIfOnPage('tasks', loadTasks);
+      break;
+    case 'system_status':
+      if (msg.data) updateStats(msg.data);
+      break;
+    case 'budget_warning':
+      showBudgetWarning(msg);
+      break;
+    case 'rate_limit':
+      appendLog({ level: 'warn', message: `⚠ Rate limit on worker ${msg.worker_id}: ${msg.message}`, worker_id: msg.worker_id });
+      break;
+  }
+}
+
+function refreshIfOnPage(page, fn) {
+  if (document.getElementById('page-' + page).classList.contains('active')) fn();
+}
+
+function appendLog(msg) {
+  const stream = document.getElementById('log-stream');
+  const filter = document.getElementById('log-filter-worker').value;
+  if (filter && String(msg.worker_id) !== filter) return;
+
+  const div = document.createElement('div');
+  div.className = 'log-line ' + (msg.level || 'muted');
+  const ts = new Date().toLocaleTimeString();
+  const prefix = msg.worker_id ? `[W${msg.worker_id}${msg.task_id ? '/T' + msg.task_id : ''}] ` : '';
+  div.textContent = `${ts} ${prefix}${msg.message}`;
+  stream.appendChild(div);
+
+  // Auto-scroll if near bottom
+  if (stream.scrollTop + stream.clientHeight >= stream.scrollHeight - 40) {
+    stream.scrollTop = stream.scrollHeight;
+  }
+
+  // Trim old lines
+  while (stream.children.length > 2000) stream.removeChild(stream.firstChild);
+}
+
+function showBudgetWarning(msg) {
+  const banner = document.createElement('div');
+  banner.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#d29922;color:#000;padding:12px 18px;border-radius:8px;font-weight:600;z-index:200';
+  banner.textContent = `⚠ Budget warning: ${msg.message}`;
+  document.body.appendChild(banner);
+  setTimeout(() => banner.remove(), 6000);
+}
+
+// ── Dashboard ────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const [status, tasks, workers] = await Promise.all([
+    get('/status'), get('/tasks?limit=5'), get('/workers')
+  ]);
+
+  if (status?.data) updateStats(status.data);
+
+  // Recent tasks
+  const taskBody = document.getElementById('recent-tasks-body');
+  const td = tasks?.data?.tasks || [];
+  taskBody.innerHTML = td.length ? td.map(t => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+      <div><div style="font-size:13px">${esc(t.title)}</div><div style="font-size:11px;color:var(--muted)">#${t.id}</div></div>
+      <span class="pill pill-${t.status}">${t.status}</span>
+    </div>`).join('') : '<div class="empty"><div class="emoji">📋</div>No tasks</div>';
+
+  // Worker status
+  const wBody = document.getElementById('worker-status-body');
+  const wd = workers?.data?.workers || [];
+  wBody.innerHTML = wd.length ? wd.map(w => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-size:13px">${esc(w.name)}</div>
+        <div style="font-size:11px;color:var(--muted)">${w.cli_type}</div>
+      </div>
+      <span class="pill pill-${w.status || 'paused'}">${w.status || 'idle'}</span>
+    </div>`).join('') : '<div class="empty"><div class="emoji">⚙️</div>No workers</div>';
+}
+
+function updateStats(data) {
+  const z = (s, v) => { const el = document.getElementById(s); if (el) el.textContent = v; };
+  z('stat-workers', `${data.active_workers ?? '—'}/${data.total_workers ?? '—'}`);
+  z('stat-tasks', `${data.running_tasks ?? '—'}/${data.pending_tasks ?? '—'}`);
+  z('stat-tokens', fmtNum(data.tokens_today ?? 0));
+  const zone = data.budget_zone || 'GREEN';
+  const zoneEl = document.getElementById('stat-zone');
+  if (zoneEl) {
+    zoneEl.textContent = zone;
+    zoneEl.className = 'value';
+    const colors = { GREEN: '#3fb950', YELLOW: '#d29922', ORANGE: '#e88f1f', RED: '#f85149' };
+    zoneEl.style.color = colors[zone] || 'var(--text)';
+  }
+}
+
+function updateWorkerStatus(msg) {
+  // Refresh worker list if on workers page
+  refreshIfOnPage('workers', loadWorkers);
+  refreshIfOnPage('dashboard', loadDashboard);
+}
+
+// ── Tasks ────────────────────────────────────────────────────────────────────
+async function loadTasks() {
+  const status = document.getElementById('task-status-filter').value;
+  const params = status ? `?status=${status}` : '';
+  const res = await get('/tasks' + params);
+  const tasks = res?.data?.tasks || [];
+  const cnt = document.getElementById('task-count');
+  if (cnt) cnt.textContent = tasks.length;
+
+  document.getElementById('tasks-tbody').innerHTML = tasks.length ? tasks.map(t => `
+    <tr>
+      <td>${t.id}</td>
+      <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.title)}</td>
+      <td><span class="pill pill-${t.status}">${t.status}</span></td>
+      <td>${t.worker_id ? 'W' + t.worker_id : '—'}</td>
+      <td>${t.priority}</td>
+      <td style="color:var(--muted);font-size:12px">${fmtDate(t.created_at)}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteTask(${t.id})">✕</button></td>
+    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">No tasks</td></tr>';
+}
+
+async function deleteTask(id) {
+  if (!confirm('Delete task #' + id + '?')) return;
+  await del('/tasks/' + id);
+  loadTasks();
+}
+
+async function submitTask() {
+  const body = {
+    title: document.getElementById('task-title').value,
+    prompt: document.getElementById('task-prompt').value,
+    priority: parseInt(document.getElementById('task-priority').value) || 5,
+    cli_type: document.getElementById('task-cli').value,
+    skill: document.getElementById('task-skill').value || undefined,
+  };
+  const wid = document.getElementById('task-worker').value;
+  if (wid) body.worker_id = parseInt(wid);
+  const pid = document.getElementById('task-project').value;
+  if (pid) body.project_id = parseInt(pid);
+
+  const res = await post('/tasks', body);
+  if (res?.success) {
+    closeModal('add-task-modal');
+    document.getElementById('task-title').value = '';
+    document.getElementById('task-prompt').value = '';
+    refreshIfOnPage('tasks', loadTasks);
+    refreshIfOnPage('dashboard', loadDashboard);
+  } else {
+    alert('Error: ' + (res?.error || 'unknown'));
+  }
+}
+
+// ── Workers ──────────────────────────────────────────────────────────────────
+async function loadWorkers() {
+  const res = await get('/workers');
+  const workers = res?.data?.workers || [];
+  document.getElementById('workers-tbody').innerHTML = workers.length ? workers.map(w => `
+    <tr>
+      <td>${w.id}</td>
+      <td>${esc(w.name)}</td>
+      <td><span class="badge badge-blue">${w.cli_type}</span></td>
+      <td><span class="pill pill-${w.status || 'paused'}">${w.status || 'idle'}</span></td>
+      <td>${w.max_parallel}</td>
+      <td><span class="badge badge-${zoneBadge(w.budget_zone)}">${w.budget_zone || 'GREEN'}</span></td>
+      <td style="display:flex;gap:4px">
+        <button class="btn btn-sm" onclick="healthCheck(${w.id})">Health</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteWorker(${w.id})">✕</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">No workers</td></tr>';
+
+  // Populate dropdowns in modals
+  const sel = document.getElementById('task-worker');
+  if (sel) {
+    sel.innerHTML = '<option value="">Auto</option>' + workers.map(w => `<option value="${w.id}">${esc(w.name)}</option>`).join('');
+  }
+}
+
+function zoneBadge(z) {
+  return { GREEN: 'green', YELLOW: 'yellow', ORANGE: 'yellow', RED: 'red' }[z] || 'blue';
+}
+
+async function healthCheck(id) {
+  const res = await post('/workers/' + id + '/health');
+  alert(res?.success ? '✅ CLI healthy' : '❌ ' + (res?.error || 'unhealthy'));
+}
+
+async function deleteWorker(id) {
+  if (!confirm('Delete worker #' + id + '?')) return;
+  await del('/workers/' + id);
+  loadWorkers();
+}
+
+async function submitWorker() {
+  const body = {
+    name: document.getElementById('worker-name').value,
+    cli_type: document.getElementById('worker-cli').value,
+    work_dir: document.getElementById('worker-workdir').value,
+    max_parallel: parseInt(document.getElementById('worker-parallel').value) || 1,
+    daily_budget: parseInt(document.getElementById('worker-budget').value) || 500000,
+    model: document.getElementById('worker-model').value || undefined,
+    skill: document.getElementById('worker-skill').value || undefined,
+  };
+  const res = await post('/workers', body);
+  if (res?.success) {
+    closeModal('add-worker-modal');
+    loadWorkers();
+  } else {
+    alert('Error: ' + (res?.error || 'unknown'));
+  }
+}
+
+// ── Projects ─────────────────────────────────────────────────────────────────
+async function loadProjects() {
+  const res = await get('/projects');
+  const projects = res?.data?.projects || [];
+  document.getElementById('projects-tbody').innerHTML = projects.length ? projects.map(p => `
+    <tr>
+      <td>${p.id}</td>
+      <td>${esc(p.name)}</td>
+      <td style="font-size:12px;color:var(--muted)">${esc(p.path)}</td>
+      <td><span class="badge badge-blue">${p.cli_type}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${fmtDate(p.created_at)}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteProject(${p.id})">✕</button></td>
+    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No projects</td></tr>';
+
+  // Populate task project dropdown
+  const sel = document.getElementById('task-project');
+  if (sel) {
+    sel.innerHTML = '<option value="">None</option>' + projects.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  }
+}
+
+async function deleteProject(id) {
+  if (!confirm('Delete project #' + id + '?')) return;
+  await del('/projects/' + id);
+  loadProjects();
+}
+
+async function submitProject() {
+  const body = {
+    name: document.getElementById('project-name').value,
+    path: document.getElementById('project-path').value,
+    cli_type: document.getElementById('project-cli').value,
+    description: document.getElementById('project-desc').value,
+  };
+  const res = await post('/projects', body);
+  if (res?.success) { closeModal('add-project-modal'); loadProjects(); }
+  else alert('Error: ' + (res?.error || 'unknown'));
+}
+
+// ── Schedules ────────────────────────────────────────────────────────────────
+async function loadSchedules() {
+  const res = await get('/schedules');
+  const scheds = res?.data?.schedules || [];
+  document.getElementById('schedules-tbody').innerHTML = scheds.length ? scheds.map(s => `
+    <tr>
+      <td>${s.id}</td>
+      <td>${esc(s.name)}</td>
+      <td><code style="font-size:12px;color:var(--primary)">${esc(s.cron_expr)}</code></td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${esc(s.prompt)}</td>
+      <td><input type="checkbox" ${s.enabled ? 'checked' : ''} onchange="toggleSchedule(${s.id}, this.checked)"></td>
+      <td style="font-size:12px;color:var(--muted)">${s.next_run ? fmtDate(s.next_run) : '—'}</td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteSchedule(${s.id})">✕</button></td>
+    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">No schedules</td></tr>';
+}
+
+async function toggleSchedule(id, enabled) {
+  await put('/schedules/' + id, { enabled });
+}
+
+async function deleteSchedule(id) {
+  if (!confirm('Delete schedule #' + id + '?')) return;
+  await del('/schedules/' + id);
+  loadSchedules();
+}
+
+async function submitSchedule() {
+  const body = {
+    name: document.getElementById('sched-name').value,
+    cron_expr: document.getElementById('sched-cron').value,
+    prompt: document.getElementById('sched-prompt').value,
+    priority: parseInt(document.getElementById('sched-priority').value) || 5,
+    cli_type: document.getElementById('sched-cli').value,
+    enabled: true,
+  };
+  const res = await post('/schedules', body);
+  if (res?.success) { closeModal('add-schedule-modal'); loadSchedules(); }
+  else alert('Error: ' + (res?.error || 'unknown'));
+}
+
+// ── Logs ─────────────────────────────────────────────────────────────────────
+async function loadLogs() {
+  const taskId = document.getElementById('logs-task-filter').value;
+  const level = document.getElementById('logs-level-filter').value;
+  let params = `?page=${logsPage}&limit=50`;
+  if (taskId) params += '&task_id=' + taskId;
+  if (level) params += '&level=' + level;
+
+  const res = await get('/logs' + params);
+  const logs = res?.data?.logs || [];
+  const meta = res?.data?.meta || {};
+
+  document.getElementById('logs-tbody').innerHTML = logs.length ? logs.map(l => `
+    <tr>
+      <td style="font-size:11px;white-space:nowrap;color:var(--muted)">${fmtDate(l.created_at)}</td>
+      <td>${l.worker_id ? 'W' + l.worker_id : '—'}</td>
+      <td>${l.task_id ? '#' + l.task_id : '—'}</td>
+      <td><span class="pill pill-${l.level === 'error' ? 'failed' : l.level === 'warn' ? 'limit' : 'running'}">${l.level}</span></td>
+      <td style="font-size:12px;max-width:600px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.message)}</td>
+    </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">No logs</td></tr>';
+
+  document.getElementById('logs-page-info').textContent = `Page ${logsPage} of ${Math.max(1, Math.ceil((meta.total || 0) / 50))}`;
+  document.getElementById('logs-prev').disabled = logsPage <= 1;
+  document.getElementById('logs-next').disabled = logs.length < 50;
+}
+
+// ── Character ────────────────────────────────────────────────────────────────
+async function loadCharFile() {
+  const file = document.getElementById('char-file-select').value;
+  const res = await get('/character/' + file);
+  document.getElementById('char-content').value = res?.data?.content || '';
+}
+
+async function saveCharFile() {
+  const file = document.getElementById('char-file-select').value;
+  const content = document.getElementById('char-content').value;
+  const res = await put('/character/' + file, { content });
+  if (!res?.success) alert('Error: ' + (res?.error || 'unknown'));
+  else showToast('Saved!');
+}
+
+// ── Skills ───────────────────────────────────────────────────────────────────
+async function loadSkills() {
+  const res = await get('/character/skills');
+  skillList = res?.data?.skills || [];
+  const listEl = document.getElementById('skills-list');
+  listEl.innerHTML = skillList.length ? skillList.map(s => `
+    <div class="nav-item" onclick="editSkill('${esc(s)}')" style="margin:2px 0">${esc(s)}</div>
+  `).join('') : '<div class="empty" style="padding:12px"><div class="emoji">🎯</div>No skills</div>';
+
+  // Populate skill dropdowns in modals
+  ['task-skill', 'worker-skill'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const def = id === 'task-skill' ? '<option value="">Auto-detect</option>' : '<option value="">None</option>';
+    sel.innerHTML = def + skillList.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  });
+}
+
+async function editSkill(name) {
+  currentSkill = name;
+  document.getElementById('skill-editor-title').textContent = name;
+  document.getElementById('skill-delete-btn').style.display = '';
+  document.getElementById('skill-save-btn').style.display = '';
+  const res = await get('/character/skills/' + encodeURIComponent(name));
+  document.getElementById('skill-content').value = res?.data?.content || '';
+}
+
+async function saveSkill() {
+  const content = document.getElementById('skill-content').value;
+  const res = await put('/character/skills/' + encodeURIComponent(currentSkill), { content });
+  if (!res?.success) alert('Error: ' + (res?.error || 'unknown'));
+  else showToast('Saved!');
+}
+
+async function deleteSkill() {
+  if (!confirm('Delete skill "' + currentSkill + '"?')) return;
+  await del('/character/skills/' + encodeURIComponent(currentSkill));
+  currentSkill = '';
+  document.getElementById('skill-editor-title').textContent = 'Select a skill';
+  document.getElementById('skill-delete-btn').style.display = 'none';
+  document.getElementById('skill-save-btn').style.display = 'none';
+  document.getElementById('skill-content').value = '';
+  loadSkills();
+}
+
+async function submitSkill() {
+  const name = document.getElementById('new-skill-name').value.trim();
+  const content = document.getElementById('new-skill-content').value;
+  if (!name) { alert('Name required'); return; }
+  const res = await post('/character/skills', { name, content });
+  if (res?.success) { closeModal('add-skill-modal'); loadSkills(); }
+  else alert('Error: ' + (res?.error || 'unknown'));
+}
+
+// ── Webhooks ─────────────────────────────────────────────────────────────────
+async function loadWebhooks() {
+  const res = await get('/webhooks');
+  const webhooks = res?.data?.webhooks || [];
+  document.getElementById('webhooks-tbody').innerHTML = webhooks.length ? webhooks.map(w => `
+    <tr>
+      <td>${w.id}</td>
+      <td style="font-size:12px;max-width:250px;overflow:hidden;text-overflow:ellipsis">${esc(w.url)}</td>
+      <td><span class="badge badge-blue">${w.event}</span></td>
+      <td><input type="checkbox" ${w.enabled ? 'checked' : ''} onchange="toggleWebhook(${w.id}, this.checked)"></td>
+      <td style="font-size:12px;color:var(--muted)">${w.last_status ? w.last_status : '—'}</td>
+      <td style="display:flex;gap:4px">
+        <button class="btn btn-sm" onclick="testWebhook(${w.id})">Test</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteWebhook(${w.id})">✕</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">No webhooks</td></tr>';
+}
+
+async function toggleWebhook(id, enabled) { await put('/webhooks/' + id, { enabled }); }
+
+async function testWebhook(id) {
+  const res = await post('/webhooks/' + id + '/test');
+  alert(res?.success ? '✅ Webhook fired OK' : '❌ ' + (res?.error || 'failed'));
+}
+
+async function deleteWebhook(id) {
+  if (!confirm('Delete webhook #' + id + '?')) return;
+  await del('/webhooks/' + id);
+  loadWebhooks();
+}
+
+async function submitWebhook() {
+  const body = {
+    url: document.getElementById('wh-url').value,
+    event: document.getElementById('wh-event').value,
+    secret: document.getElementById('wh-secret').value || undefined,
+    enabled: true,
+  };
+  const res = await post('/webhooks', body);
+  if (res?.success) { closeModal('add-webhook-modal'); loadWebhooks(); }
+  else alert('Error: ' + (res?.error || 'unknown'));
+}
+
+// ── Templates ────────────────────────────────────────────────────────────────
+async function loadTemplates() {
+  const res = await get('/templates');
+  const templates = res?.data?.templates || [];
+  document.getElementById('templates-tbody').innerHTML = templates.length ? templates.map(t => `
+    <tr>
+      <td>${t.id}</td>
+      <td>${esc(t.name)}</td>
+      <td><span class="badge badge-blue">${t.cli_type}</span></td>
+      <td style="font-size:12px;color:var(--muted);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.prompt?.substring(0, 80))}…</td>
+      <td><button class="btn btn-sm btn-danger" onclick="deleteTemplate(${t.id})">✕</button></td>
+    </tr>`).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">No templates</td></tr>';
+}
+
+async function deleteTemplate(id) {
+  if (!confirm('Delete template #' + id + '?')) return;
+  await del('/templates/' + id);
+  loadTemplates();
+}
+
+async function submitTemplate() {
+  const body = {
+    name: document.getElementById('tmpl-name').value,
+    cli_type: document.getElementById('tmpl-cli').value,
+    prompt: document.getElementById('tmpl-prompt').value,
+  };
+  const res = await post('/templates', body);
+  if (res?.success) { closeModal('add-template-modal'); loadTemplates(); }
+  else alert('Error: ' + (res?.error || 'unknown'));
+}
+
+// ── Token Usage ───────────────────────────────────────────────────────────────
+async function loadUsage() {
+  const period = document.getElementById('usage-period')?.value || 'daily';
+  const res = await get('/usage?period=' + period);
+  const usage = res?.data || {};
+
+  // Stats row
+  const statsEl = document.getElementById('usage-stats');
+  if (statsEl) {
+    statsEl.innerHTML = `
+      <div class="stat-card"><div class="label">Total Input</div><div class="value">${fmtNum(usage.total_input_tokens || 0)}</div><div class="sub">tokens</div></div>
+      <div class="stat-card"><div class="label">Total Output</div><div class="value">${fmtNum(usage.total_output_tokens || 0)}</div><div class="sub">tokens</div></div>
+      <div class="stat-card"><div class="label">Total Cost</div><div class="value">$${(usage.estimated_cost || 0).toFixed(4)}</div><div class="sub">estimated</div></div>
+      <div class="stat-card"><div class="label">Tasks Run</div><div class="value">${usage.task_count || 0}</div><div class="sub">this period</div></div>`;
+  }
+
+  // Chart
+  drawUsageChart(usage.daily || []);
+
+  // Budget zones per worker
+  const budgetEl = document.getElementById('budget-zones');
+  const workers = usage.workers || [];
+  if (budgetEl) {
+    budgetEl.innerHTML = workers.length ? workers.map(w => {
+      const pct = Math.min(100, Math.round((w.tokens_used / (w.daily_budget || 1)) * 100));
+      const zone = pct < 60 ? 'GREEN' : pct < 80 ? 'YELLOW' : pct < 90 ? 'ORANGE' : 'RED';
+      const colors = { GREEN: '#3fb950', YELLOW: '#d29922', ORANGE: '#e88f1f', RED: '#f85149' };
+      return `<div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span>${esc(w.name)}</span>
+          <span style="color:${colors[zone]};font-weight:600">${zone} (${pct}%)</span>
+        </div>
+        <div class="budget-bar"><div class="budget-fill" style="width:${pct}%;background:${colors[zone]}"></div></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${fmtNum(w.tokens_used)} / ${fmtNum(w.daily_budget)} tokens</div>
+      </div>`;
+    }).join('') : '<div class="empty"><div class="emoji">📊</div>No worker data</div>';
+  }
+}
+
+function drawUsageChart(daily) {
+  const canvas = document.getElementById('usage-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const parent = canvas.parentElement;
+  canvas.width = parent.clientWidth;
+  canvas.height = parent.clientHeight;
+
+  if (!daily.length) {
+    ctx.fillStyle = 'var(--muted)';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('No data', canvas.width / 2, canvas.height / 2);
+    return;
+  }
+
+  const maxVal = Math.max(...daily.map(d => (d.input_tokens || 0) + (d.output_tokens || 0)), 1);
+  const pad = { top: 20, right: 20, bottom: 30, left: 60 };
+  const w = canvas.width - pad.left - pad.right;
+  const h = canvas.height - pad.top - pad.bottom;
+  const barW = Math.max(2, w / daily.length - 4);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  daily.forEach((d, i) => {
+    const total = (d.input_tokens || 0) + (d.output_tokens || 0);
+    const barH = (total / maxVal) * h;
+    const x = pad.left + i * (w / daily.length) + 2;
+    const y = pad.top + h - barH;
+
+    ctx.fillStyle = '#58a6ff88';
+    ctx.fillRect(x, y, barW, barH);
+
+    if (daily.length <= 14) {
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(d.date ? d.date.slice(5) : '', x + barW / 2, pad.top + h + 18);
+    }
+  });
+
+  // Y axis
+  ctx.strokeStyle = '#30363d';
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, pad.top + h);
+  ctx.stroke();
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'right';
+  [0, 0.25, 0.5, 0.75, 1].forEach(f => {
+    const y = pad.top + h - f * h;
+    ctx.fillText(fmtNum(Math.round(maxVal * f)), pad.left - 4, y + 4);
+  });
+}
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+async function loadSettings() {
+  const res = await get('/settings');
+  const data = res?.data || {};
+  const body = document.getElementById('settings-body');
+  const keys = Object.keys(data).sort();
+  if (!keys.length) { body.innerHTML = '<div class="empty"><div class="emoji">⚙️</div>No settings</div>'; return; }
+
+  body.innerHTML = keys.map(k => `
+    <div class="form-group" style="display:grid;grid-template-columns:200px 1fr auto;gap:10px;align-items:center">
+      <label style="margin:0;font-size:13px;color:var(--text)">${esc(k)}</label>
+      <input id="setting-${esc(k)}" value="${esc(data[k] || '')}" style="background:#0d1117;border:1px solid var(--border);border-radius:4px;padding:6px 8px;color:var(--text)">
+      <button class="btn btn-sm btn-primary" onclick="saveSetting('${esc(k)}')">Save</button>
+    </div>`).join('');
+}
+
+async function saveSetting(key) {
+  const val = document.getElementById('setting-' + key).value;
+  const res = await put('/settings/' + key, { value: val });
+  if (!res?.success) alert('Error: ' + (res?.error || 'unknown'));
+  else showToast('Saved!');
+}
+
+// ── Modals ───────────────────────────────────────────────────────────────────
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  // Pre-load dropdowns if needed
+  if (id === 'add-task-modal') { loadWorkers(); loadProjects(); loadSkills(); }
+  if (id === 'add-worker-modal') { loadSkills(); }
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// Close on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+// Close on Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+});
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+async function restartDaemon() {
+  if (!confirm('Restart ClawDaemon? The page will reload automatically in 4 seconds.')) return;
+  await post('/daemon/restart');
+  showToast('Restarting…');
+  setTimeout(() => location.reload(), 4000);
+}
+
+async function logout() {
+  await post('/auth/logout');
+  location.href = '/login';
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function fmtNum(n) {
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(n);
+}
+
+function fmtDate(s) {
+  if (!s) return '—';
+  try { return new Date(s).toLocaleString(); } catch { return s; }
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#3fb950;color:#000;padding:8px 20px;border-radius:6px;font-weight:600;z-index:300;pointer-events:none';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2000);
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+connectWS();
+loadDashboard();
+
+// Auto-refresh dashboard stats every 30s
+setInterval(() => {
+  if (document.getElementById('page-dashboard').classList.contains('active')) loadDashboard();
+}, 30000);
+</script>
+</body>
+</html>

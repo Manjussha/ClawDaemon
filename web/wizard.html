@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClawDaemon — Setup Wizard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.wizard{width:100%;max-width:640px}
+.wizard-header{text-align:center;margin-bottom:32px}
+.wizard-header .logo{font-size:48px;margin-bottom:12px}
+.wizard-header h1{font-size:24px;font-weight:700;color:#58a6ff}
+.wizard-header p{color:#8b949e;margin-top:6px;font-size:14px}
+/* Steps indicator */
+.steps{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:32px}
+.step-dot{width:32px;height:32px;border-radius:50%;border:2px solid #30363d;background:#0d1117;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#8b949e;flex-shrink:0;transition:all .3s;position:relative;z-index:1}
+.step-dot.active{border-color:#58a6ff;background:#1c2a3a;color:#58a6ff}
+.step-dot.done{border-color:#3fb950;background:#1a2e1c;color:#3fb950}
+.step-line{flex:1;height:2px;background:#30363d;max-width:60px}
+.step-line.done{background:#3fb950}
+/* Card */
+.card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:32px}
+.card h2{font-size:18px;font-weight:600;margin-bottom:8px}
+.card .desc{color:#8b949e;font-size:13px;margin-bottom:24px;line-height:1.6}
+/* Form */
+.form-group{margin-bottom:18px}
+.form-group label{display:block;font-size:12px;color:#8b949e;margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:.4px}
+.form-group input,.form-group select{width:100%;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:10px 12px;color:#e6edf3;font-size:14px;outline:none;transition:border-color .2s}
+.form-group input:focus,.form-group select:focus{border-color:#58a6ff}
+.form-group .hint{font-size:11px;color:#8b949e;margin-top:5px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* Port grid */
+.port-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:8px}
+.port-card{border:2px solid #30363d;border-radius:8px;padding:10px 12px;cursor:pointer;transition:all .2s;background:#0d1117;position:relative}
+.port-card:hover:not(.unavailable){border-color:#58a6ff;background:#1c2a3a}
+.port-card.selected{border-color:#58a6ff;background:#1c2a3a}
+.port-card.unavailable{opacity:.4;cursor:not-allowed}
+.port-card .pnum{font-size:18px;font-weight:700;color:#e6edf3}
+.port-card .pnote{font-size:11px;color:#8b949e;margin-top:2px}
+.port-card .pstatus{font-size:11px;font-weight:600;margin-top:4px}
+.port-card.unavailable .pstatus{color:#f85149}
+.port-card:not(.unavailable) .pstatus{color:#3fb950}
+.port-card.selected .pnum{color:#58a6ff}
+.scanning{color:#8b949e;font-size:13px;padding:16px 0;text-align:center}
+/* Open ports table */
+.open-ports-wrap{margin-top:20px}
+.open-ports-toggle{background:none;border:1px solid #30363d;border-radius:6px;color:#8b949e;font-size:13px;padding:8px 14px;cursor:pointer;width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;transition:all .2s}
+.open-ports-toggle:hover{border-color:#58a6ff;color:#e6edf3}
+.open-ports-body{display:none;margin-top:8px;background:#0d1117;border:1px solid #30363d;border-radius:6px;max-height:280px;overflow-y:auto}
+.open-ports-body.open{display:block}
+.op-table{width:100%;border-collapse:collapse;font-size:12px}
+.op-table th{text-align:left;padding:7px 12px;color:#8b949e;font-weight:500;border-bottom:1px solid #30363d;font-size:11px;text-transform:uppercase;position:sticky;top:0;background:#0d1117;z-index:1}
+.op-table td{padding:6px 12px;border-bottom:1px solid rgba(48,54,61,.4)}
+.op-table tr:last-child td{border-bottom:none}
+.op-table tr:hover td{background:rgba(255,255,255,.02)}
+.op-badge{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600}
+.op-badge-tcp{background:rgba(88,166,255,.15);color:#58a6ff}
+.op-badge-udp{background:rgba(188,140,255,.15);color:#bc8cff}
+/* Buttons */
+.btn-row{display:flex;justify-content:space-between;margin-top:24px;gap:12px}
+.btn{padding:10px 24px;border-radius:6px;border:1px solid #30363d;background:#161b22;color:#e6edf3;cursor:pointer;font-size:14px;transition:all .15s;font-weight:500}
+.btn:hover{border-color:#8b949e}
+.btn-primary{background:#1f6feb;border-color:#1f6feb;color:#fff}
+.btn-primary:hover{background:#388bfd;border-color:#388bfd}
+.btn-primary:disabled{background:#21262d;border-color:#30363d;color:#8b949e;cursor:not-allowed}
+.btn-skip{color:#8b949e;border-color:transparent;background:transparent}
+.btn-skip:hover{color:#e6edf3;border-color:#30363d}
+/* Alert */
+.alert{padding:12px 16px;border-radius:6px;font-size:13px;margin-bottom:16px;display:none}
+.alert-error{background:#3d1f1f;border:1px solid #f85149;color:#f85149}
+.alert-success{background:#1a2e1c;border:1px solid #3fb950;color:#3fb950}
+.alert-info{background:#1c2a3a;border:1px solid #58a6ff;color:#79c0ff}
+/* Telegram setup guide */
+.guide-steps{list-style:none;counter-reset:gs;padding:0}
+.guide-steps li{counter-increment:gs;display:flex;gap:10px;margin-bottom:10px;font-size:13px;line-height:1.5;color:#8b949e}
+.guide-steps li::before{content:counter(gs);width:22px;height:22px;border-radius:50%;background:#1c2a3a;border:1px solid #58a6ff;color:#58a6ff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+code{background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:1px 6px;font-size:12px;color:#79c0ff;font-family:'Courier New',monospace}
+/* Success */
+.success-icon{font-size:56px;text-align:center;margin:20px 0 16px}
+.config-preview{background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:14px;font-family:'Courier New',monospace;font-size:12px;color:#79c0ff;white-space:pre;overflow-x:auto;margin-top:12px;line-height:1.7}
+/* Toggle password */
+.input-wrap{position:relative}
+.input-wrap input{padding-right:40px}
+.eye-btn{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#8b949e;cursor:pointer;font-size:16px;padding:2px}
+</style>
+</head>
+<body>
+<div class="wizard">
+  <div class="wizard-header">
+    <div class="logo">🐾</div>
+    <h1>ClawDaemon Setup</h1>
+    <p>Configure your AI agent orchestrator in 4 steps</p>
+  </div>
+
+  <!-- Step indicators -->
+  <div class="steps">
+    <div class="step-dot active" id="dot-1">1</div>
+    <div class="step-line" id="line-1"></div>
+    <div class="step-dot" id="dot-2">2</div>
+    <div class="step-line" id="line-2"></div>
+    <div class="step-dot" id="dot-3">3</div>
+    <div class="step-line" id="line-3"></div>
+    <div class="step-dot" id="dot-4">4</div>
+    <div class="step-line" id="line-4"></div>
+    <div class="step-dot" id="dot-5">✓</div>
+  </div>
+
+  <div class="card">
+    <div id="alert-box" class="alert"></div>
+
+    <!-- Step 1: Port Selection -->
+    <div id="step-1">
+      <h2>🔌 Choose Your Port</h2>
+      <p class="desc">Select which port ClawDaemon listens on. Green = available, Red = already in use by another process.</p>
+      <div id="port-scanning" class="scanning">⏳ Scanning ports…</div>
+      <div id="port-grid" class="port-grid" style="display:none"></div>
+      <div class="form-group" style="margin-top:16px">
+        <label>Custom Port</label>
+        <input type="number" id="custom-port" placeholder="e.g. 8080" min="1" max="65535">
+        <div class="hint">Enter any port number 1–65535</div>
+      </div>
+      <!-- Open ports panel -->
+      <div class="open-ports-wrap">
+        <button class="open-ports-toggle" onclick="toggleOpenPorts(this)">
+          <span>🔍 View all ports currently open on this machine</span>
+          <span id="open-ports-arrow">▼</span>
+        </button>
+        <div class="open-ports-body" id="open-ports-body">
+          <table class="op-table">
+            <thead><tr><th>Port</th><th>Proto</th><th>Process</th><th>PID</th></tr></thead>
+            <tbody id="open-ports-tbody"><tr><td colspan="4" style="color:#8b949e;padding:16px;text-align:center">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <span></span>
+        <button class="btn btn-primary" onclick="goStep(2)">Next →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Admin Credentials -->
+    <div id="step-2" style="display:none">
+      <h2>🔐 Admin Credentials</h2>
+      <p class="desc">Set your login username and password for the ClawDaemon dashboard.</p>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="admin-username" value="admin" placeholder="admin">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <div class="input-wrap">
+          <input type="password" id="admin-password" placeholder="Choose a strong password">
+          <button class="eye-btn" onclick="togglePwd('admin-password',this)">👁</button>
+        </div>
+        <div class="hint">Minimum 8 characters recommended</div>
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <div class="input-wrap">
+          <input type="password" id="admin-password2" placeholder="Repeat password">
+          <button class="eye-btn" onclick="togglePwd('admin-password2',this)">👁</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Session Expiry (hours)</label>
+        <input type="number" id="session-hours" value="24" min="1" max="720">
+        <div class="hint">How long before the login session expires</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="goStep(1)">← Back</button>
+        <button class="btn btn-primary" onclick="goStep(3)">Next →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Work Directory -->
+    <div id="step-3" style="display:none">
+      <h2>📁 Work Directory</h2>
+      <p class="desc">Where ClawDaemon stores its database, character files, screenshots and logs. Should be a permanent location with write access.</p>
+      <div class="form-group">
+        <label>Work Directory Path</label>
+        <input type="text" id="work-dir" placeholder="e.g. C:\ClawDaemon\data">
+        <div class="hint">Directory will be created if it doesn't exist</div>
+      </div>
+      <div id="dir-info" style="margin-top:12px;padding:12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;font-size:12px;color:#8b949e;line-height:1.7">
+        <div>📄 <strong style="color:#e6edf3">Database:</strong> <span id="dir-db">&lt;work_dir&gt;\clawdaemon.db</span></div>
+        <div>🎭 <strong style="color:#e6edf3">Characters:</strong> <span id="dir-char">&lt;work_dir&gt;\character\</span></div>
+        <div>📸 <strong style="color:#e6edf3">Screenshots:</strong> <span id="dir-ss">&lt;work_dir&gt;\screenshots\</span></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="goStep(2)">← Back</button>
+        <button class="btn btn-primary" onclick="goStep(4)">Next →</button>
+      </div>
+    </div>
+
+    <!-- Step 4: Telegram (Optional) -->
+    <div id="step-4" style="display:none">
+      <h2>📱 Telegram Integration <span style="font-size:12px;font-weight:400;color:#8b949e">(optional)</span></h2>
+      <p class="desc">Control ClawDaemon from your phone — add tasks, check status, get alerts. Also required for 2FA login.</p>
+      <ul class="guide-steps">
+        <li>Open Telegram, search for <code>@BotFather</code></li>
+        <li>Send <code>/newbot</code> → follow prompts → copy the <strong>Bot Token</strong></li>
+        <li>Send a message to your new bot, then visit:<br><code>https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code><br>Copy your <strong>Chat ID</strong> from the response</li>
+      </ul>
+      <div class="form-group" style="margin-top:20px">
+        <label>Bot Token</label>
+        <input type="text" id="tg-token" placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyz">
+      </div>
+      <div class="form-group">
+        <label>Chat ID (your user ID)</label>
+        <input type="text" id="tg-chatid" placeholder="e.g. 123456789">
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="goStep(3)">← Back</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-skip" onclick="skipTelegram()">Skip for now</button>
+          <button class="btn btn-primary" onclick="goStep(5)">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5: Confirm & Save -->
+    <div id="step-5" style="display:none">
+      <h2>✅ Confirm Configuration</h2>
+      <p class="desc">Review your settings below, then click <strong>Save & Apply</strong>. ClawDaemon will write a <code>.env</code> file — restart the daemon to apply all changes.</p>
+      <div class="config-preview" id="config-preview">Loading…</div>
+      <div class="btn-row">
+        <button class="btn" onclick="goStep(4)">← Back</button>
+        <button class="btn btn-primary" id="save-btn" onclick="saveConfig()">💾 Save & Apply</button>
+      </div>
+    </div>
+
+    <!-- Step 6: Done -->
+    <div id="step-6" style="display:none">
+      <div class="success-icon">🎉</div>
+      <h2 style="text-align:center;margin-bottom:8px">Setup Complete!</h2>
+      <p class="desc" style="text-align:center">Your <code>.env</code> file has been saved.</p>
+      <div style="background:#0d1117;border:1px solid #3fb950;border-radius:8px;padding:16px;margin:20px 0;font-size:13px;line-height:1.8">
+        <div>1. <strong>Stop</strong> the running ClawDaemon process (Ctrl+C or Task Manager)</div>
+        <div>2. <strong>Restart</strong> it in a terminal:</div>
+        <div style="margin:8px 0 0 16px"><code id="restart-cmd">clawdaemon.exe</code></div>
+        <div style="margin-top:8px">3. Open <strong id="new-url">http://localhost:8080</strong> and log in</div>
+      </div>
+      <div style="text-align:center;margin-top:8px">
+        <button class="btn btn-primary" onclick="goToLogin()">Go to Login →</button>
+      </div>
+    </div>
+  </div><!-- .card -->
+</div><!-- .wizard -->
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let state = {
+  port: '8080',
+  adminUsername: 'admin',
+  adminPassword: '',
+  workDir: '',
+  sessionHours: '24',
+  telegramToken: '',
+  telegramChatID: '',
+  currentStep: 1,
+};
+
+// ── Step navigation ────────────────────────────────────────────────────────────
+function goStep(n) {
+  if (!validateStep(state.currentStep, n)) return;
+
+  // Mark done
+  for (let i = 1; i < n; i++) {
+    document.getElementById('dot-' + i).className = 'step-dot done';
+    document.getElementById('dot-' + i).textContent = '✓';
+    if (i <= 4) document.getElementById('line-' + i).classList.add('done');
+  }
+  document.getElementById('dot-' + n).className = 'step-dot active';
+
+  // Show/hide
+  for (let i = 1; i <= 6; i++) {
+    const el = document.getElementById('step-' + i);
+    if (el) el.style.display = i === n ? '' : 'none';
+  }
+  state.currentStep = n;
+  clearAlert();
+
+  if (n === 5) buildPreview();
+}
+
+function validateStep(current, next) {
+  clearAlert();
+  if (current === 1) {
+    const port = getPort();
+    if (!port || port < 1 || port > 65535) { showAlert('Please select or enter a valid port.', 'error'); return false; }
+    state.port = String(port);
+  }
+  if (current === 2) {
+    const u = document.getElementById('admin-username').value.trim();
+    const p = document.getElementById('admin-password').value;
+    const p2 = document.getElementById('admin-password2').value;
+    if (!u) { showAlert('Username is required.', 'error'); return false; }
+    if (!p) { showAlert('Password is required.', 'error'); return false; }
+    if (p !== p2) { showAlert('Passwords do not match.', 'error'); return false; }
+    state.adminUsername = u;
+    state.adminPassword = p;
+    state.sessionHours = document.getElementById('session-hours').value || '24';
+  }
+  if (current === 3) {
+    const d = document.getElementById('work-dir').value.trim();
+    if (!d) { showAlert('Work directory is required.', 'error'); return false; }
+    state.workDir = d;
+  }
+  if (current === 4) {
+    state.telegramToken = document.getElementById('tg-token').value.trim();
+    state.telegramChatID = document.getElementById('tg-chatid').value.trim();
+    if (state.telegramToken && !state.telegramChatID) {
+      showAlert('Please enter your Chat ID (found via getUpdates API).', 'error'); return false;
+    }
+  }
+  return true;
+}
+
+function skipTelegram() {
+  state.telegramToken = '';
+  state.telegramChatID = '';
+  document.getElementById('tg-token').value = '';
+  document.getElementById('tg-chatid').value = '';
+  goStep(5);
+}
+
+// ── Port scanning ─────────────────────────────────────────────────────────────
+let selectedPort = 8080;
+
+async function scanPorts() {
+  try {
+    const res = await fetch('/api/setup/ports');
+    const data = await res.json();
+    const ports = data.data || [];
+
+    document.getElementById('port-scanning').style.display = 'none';
+    const grid = document.getElementById('port-grid');
+    grid.style.display = 'grid';
+
+    ports.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'port-card' + (p.available ? '' : ' unavailable');
+      card.innerHTML = `
+        <div class="pnum">${p.port}</div>
+        <div class="pnote">${p.note || ''}</div>
+        <div class="pstatus">${p.available ? '● Available' : '✕ In use'}</div>`;
+      if (p.available) {
+        card.onclick = () => selectPort(p.port, card);
+        if (p.port === 8080 && p.available) {
+          selectPort(p.port, card);
+          card.classList.add('selected');
+        }
+      }
+      grid.appendChild(card);
+    });
+
+    // If 8080 unavailable, pick first available
+    if (!ports.find(p => p.port === 8080 && p.available)) {
+      const first = ports.find(p => p.available);
+      if (first) {
+        selectPort(first.port, grid.querySelector('.port-card:not(.unavailable)'));
+      }
+    }
+  } catch (e) {
+    document.getElementById('port-scanning').textContent = '⚠ Could not scan ports — enter one manually.';
+  }
+}
+
+function selectPort(port, card) {
+  document.querySelectorAll('.port-card.selected').forEach(c => c.classList.remove('selected'));
+  if (card) card.classList.add('selected');
+  selectedPort = port;
+  document.getElementById('custom-port').value = port;
+}
+
+function getPort() {
+  const custom = parseInt(document.getElementById('custom-port').value);
+  return custom || selectedPort;
+}
+
+// ── Open ports ────────────────────────────────────────────────────────────────
+let openPortsLoaded = false;
+
+function toggleOpenPorts(btn) {
+  const body = document.getElementById('open-ports-body');
+  const arrow = document.getElementById('open-ports-arrow');
+  const isOpen = body.classList.toggle('open');
+  arrow.textContent = isOpen ? '▲' : '▼';
+  if (isOpen && !openPortsLoaded) loadOpenPorts();
+}
+
+async function loadOpenPorts() {
+  const tbody = document.getElementById('open-ports-tbody');
+  try {
+    const res = await fetch('/api/setup/listening');
+    const data = await res.json();
+    const ports = data.data || [];
+    openPortsLoaded = true;
+
+    if (!ports.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="color:#8b949e;padding:16px;text-align:center">No listening ports detected</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = ports.map(p => {
+      const highlight = p.port === parseInt(document.getElementById('custom-port').value || '8080')
+        ? 'style="background:rgba(88,166,255,.06)"' : '';
+      const proc = p.process || '—';
+      return `<tr ${highlight}>
+        <td style="font-weight:600;color:#e6edf3">${p.port}
+          <button onclick="selectPort(${p.port},null);document.getElementById('custom-port').value=${p.port}"
+            style="margin-left:8px;font-size:10px;padding:1px 6px;border:1px solid #30363d;border-radius:3px;background:none;color:#58a6ff;cursor:pointer">use</button>
+        </td>
+        <td><span class="op-badge op-badge-${p.proto||'tcp'}">${(p.proto||'tcp').toUpperCase()}</span></td>
+        <td style="color:#8b949e">${esc(proc)}</td>
+        <td style="color:#8b949e">${p.pid || '—'}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="4" style="color:#f85149;padding:12px;text-align:center">Failed to load: ${e.message}</td></tr>`;
+  }
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Update dir preview as user types
+document.addEventListener('DOMContentLoaded', () => {
+  const wd = document.getElementById('work-dir');
+  if (wd) {
+    wd.addEventListener('input', () => {
+      const d = wd.value || '<work_dir>';
+      const sep = d.includes('/') ? '/' : '\\';
+      document.getElementById('dir-db').textContent = d + sep + 'clawdaemon.db';
+      document.getElementById('dir-char').textContent = d + sep + 'character' + sep;
+      document.getElementById('dir-ss').textContent = d + sep + 'screenshots' + sep;
+    });
+  }
+  scanPorts();
+  loadCurrentConfig();
+});
+
+async function loadCurrentConfig() {
+  try {
+    const res = await fetch('/api/setup/status');
+    const data = await res.json();
+    if (data.data) {
+      if (data.data.work_dir) {
+        document.getElementById('work-dir').value = data.data.work_dir;
+        document.getElementById('work-dir').dispatchEvent(new Event('input'));
+        state.workDir = data.data.work_dir;
+      }
+      if (data.data.port) {
+        document.getElementById('custom-port').value = data.data.port;
+        selectedPort = parseInt(data.data.port);
+      }
+    }
+  } catch (e) {}
+}
+
+// ── Config preview ────────────────────────────────────────────────────────────
+function buildPreview() {
+  const sep = state.workDir.includes('/') ? '/' : '\\';
+  let preview = `PORT=${state.port}\n`;
+  preview += `WORK_DIR=${state.workDir}\n`;
+  preview += `DB_PATH=${state.workDir}${sep}clawdaemon.db\n`;
+  preview += `CHARACTER_DIR=${state.workDir}${sep}character\n`;
+  preview += `SCREENSHOTS_DIR=${state.workDir}${sep}screenshots\n`;
+  preview += `ADMIN_USERNAME=${state.adminUsername}\n`;
+  preview += `ADMIN_PASSWORD=${'*'.repeat(state.adminPassword.length)}\n`;
+  preview += `SESSION_EXPIRY_HOURS=${state.sessionHours}\n`;
+  preview += `BRUTE_FORCE_MAX_ATTEMPTS=5\n`;
+  preview += `BRUTE_FORCE_BLOCK_MINUTES=15\n`;
+  if (state.telegramToken) {
+    preview += `TELEGRAM_TOKEN=${state.telegramToken.slice(0,10)}…\n`;
+    preview += `TELEGRAM_CHAT_ID=${state.telegramChatID}\n`;
+  }
+  document.getElementById('config-preview').textContent = preview;
+}
+
+// ── Save ─────────────────────────────────────────────────────────────────────
+async function saveConfig() {
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  clearAlert();
+
+  try {
+    const body = {
+      port: state.port,
+      admin_username: state.adminUsername,
+      admin_password: state.adminPassword,
+      work_dir: state.workDir,
+      session_expiry_hours: state.sessionHours,
+      telegram_token: state.telegramToken,
+      telegram_chat_id: state.telegramChatID,
+    };
+    const res = await fetch('/api/setup/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.success) {
+      // Show success step
+      document.getElementById('step-5').style.display = 'none';
+      document.getElementById('step-6').style.display = '';
+      document.getElementById('dot-5').className = 'step-dot done';
+      document.getElementById('restart-cmd').textContent =
+        (navigator.platform.includes('Win') ? '' : './') + 'clawdaemon' +
+        (navigator.platform.includes('Win') ? '.exe' : '');
+      const host = window.location.hostname;
+      document.getElementById('new-url').textContent = `http://${host}:${state.port}`;
+      document.getElementById('new-url').href = `http://${host}:${state.port}/login`;
+    } else {
+      showAlert('Error: ' + (data.error || 'unknown error'), 'error');
+    }
+  } catch (e) {
+    showAlert('Network error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '💾 Save & Apply';
+  }
+}
+
+function goToLogin() {
+  const host = window.location.hostname; // preserves whatever IP/hostname the user opened the wizard with
+  window.location.href = `http://${host}:${state.port}/login`;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function showAlert(msg, type) {
+  const el = document.getElementById('alert-box');
+  el.className = `alert alert-${type}`;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function clearAlert() {
+  const el = document.getElementById('alert-box');
+  el.style.display = 'none';
+}
+function togglePwd(id, btn) {
+  const inp = document.getElementById(id);
+  if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
+  else { inp.type = 'password'; btn.textContent = '👁'; }
+}
+</script>
+</body>
+</html>
