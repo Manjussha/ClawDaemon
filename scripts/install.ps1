@@ -1,5 +1,5 @@
 # ClawDaemon installer — Windows PowerShell
-# Usage: iwr -useb https://raw.githubusercontent.com/yourusername/clawdaemon/main/scripts/install.ps1 | iex
+# Usage: iwr -useb https://raw.githubusercontent.com/Manjussha/ClawDaemon/main/scripts/install.ps1 | iex
 #
 # Run in PowerShell (not cmd):
 #   Set-ExecutionPolicy RemoteSigned -Scope CurrentUser   # allow scripts once
@@ -7,7 +7,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$REPO        = "yourusername/clawdaemon"
+$REPO        = "Manjussha/ClawDaemon"
 $BINARY      = "clawdaemon.exe"
 $INSTALL_DIR = "$env:LOCALAPPDATA\Programs\ClawDaemon"
 

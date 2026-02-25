@@ -1,9 +1,9 @@
 #!/bin/sh
 # ClawDaemon installer — Linux & macOS
-# Usage: curl -fsSL https://raw.githubusercontent.com/yourusername/clawdaemon/main/scripts/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/Manjussha/ClawDaemon/main/scripts/install.sh | sh
 set -e
 
-REPO="yourusername/clawdaemon"
+REPO="Manjussha/ClawDaemon"
 BINARY="clawdaemon"
 INSTALL_DIR="$HOME/.local/bin"
 
