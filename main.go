@@ -34,14 +34,13 @@ import (
 var Version = "dev"
 
 func main() {
-	// ── 0. Setup wizard — run and exit if requested ───────────────────────────
+	// ── 0. Setup hint — web form at /setup ───────────────────────────────────
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "setup", "--setup", "-setup":
-			if err := wizard.Run(Version); err != nil {
-				log.Fatalf("Setup: %v", err)
-			}
-			os.Exit(0)
+			log.Println("Setup mode: open your browser at http://localhost:8080/setup")
+			log.Println("(Starting server — press Ctrl+C when done)")
+			// Fall through to normal startup. / auto-redirects to /setup when no .env.
 		}
 	}
 
@@ -202,6 +201,11 @@ func serveFrontend() http.Handler {
 		path := r.URL.Path
 		switch path {
 		case "/", "":
+			// First-run: redirect to web setup wizard if .env is missing.
+			if _, err := os.Stat(".env"); os.IsNotExist(err) {
+				http.Redirect(w, r, "/setup", http.StatusFound)
+				return
+			}
 			serveFile(w, "index.html")
 		case "/login":
 			serveFile(w, "login.html")

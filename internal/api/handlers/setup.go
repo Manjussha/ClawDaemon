@@ -137,9 +137,18 @@ func (h *Handler) SaveSetup(w http.ResponseWriter, r *http.Request) {
 		fail(w, http.StatusInternalServerError, "write .env: "+err.Error())
 		return
 	}
-	ok(w, map[string]string{
-		"message":  "Configuration saved to .env — restart ClawDaemon to apply.",
+
+	// Auto-restart so new config takes effect. Response is sent first,
+	// then the process restarts after a short delay.
+	go func() {
+		time.Sleep(1500 * time.Millisecond)
+		_ = platform.Restart()
+	}()
+
+	ok(w, map[string]interface{}{
+		"message":  "Configuration saved — restarting ClawDaemon…",
 		"env_path": ".env",
+		"restart":  true,
 	})
 }
 

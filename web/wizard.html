@@ -235,15 +235,17 @@ code{background:#0d1117;border:1px solid #30363d;border-radius:4px;padding:1px 6
     <div id="step-6" style="display:none">
       <div class="success-icon">🎉</div>
       <h2 style="text-align:center;margin-bottom:8px">Setup Complete!</h2>
-      <p class="desc" style="text-align:center">Your <code>.env</code> file has been saved.</p>
-      <div style="background:#0d1117;border:1px solid #3fb950;border-radius:8px;padding:16px;margin:20px 0;font-size:13px;line-height:1.8">
-        <div>1. <strong>Stop</strong> the running ClawDaemon process (Ctrl+C or Task Manager)</div>
-        <div>2. <strong>Restart</strong> it in a terminal:</div>
-        <div style="margin:8px 0 0 16px"><code id="restart-cmd">clawdaemon.exe</code></div>
-        <div style="margin-top:8px">3. Open <strong id="new-url">http://localhost:8080</strong> and log in</div>
+      <p class="desc" style="text-align:center">Configuration saved. ClawDaemon is restarting…</p>
+      <div style="background:#0d1117;border:1px solid #3fb950;border-radius:8px;padding:20px;margin:20px 0;text-align:center">
+        <div style="font-size:32px;margin-bottom:10px" id="spin-icon">⏳</div>
+        <div style="color:#3fb950;font-size:15px;font-weight:600">Restarting daemon…</div>
+        <div style="color:#8b949e;font-size:13px;margin-top:8px">
+          Redirecting to login at <strong id="new-url">http://localhost:8080</strong>
+          in <strong id="count">8</strong>s
+        </div>
       </div>
-      <div style="text-align:center;margin-top:8px">
-        <button class="btn btn-primary" onclick="goToLogin()">Go to Login →</button>
+      <div style="text-align:center">
+        <button class="btn btn-primary" onclick="goToLogin()">Go to Login now →</button>
       </div>
     </div>
   </div><!-- .card -->
@@ -509,12 +511,10 @@ async function saveConfig() {
       document.getElementById('step-5').style.display = 'none';
       document.getElementById('step-6').style.display = '';
       document.getElementById('dot-5').className = 'step-dot done';
-      document.getElementById('restart-cmd').textContent =
-        (navigator.platform.includes('Win') ? '' : './') + 'clawdaemon' +
-        (navigator.platform.includes('Win') ? '.exe' : '');
       const host = window.location.hostname;
+      const loginURL = `http://${host}:${state.port}/login`;
       document.getElementById('new-url').textContent = `http://${host}:${state.port}`;
-      document.getElementById('new-url').href = `http://${host}:${state.port}/login`;
+      startCountdown(loginURL);
     } else {
       showAlert('Error: ' + (data.error || 'unknown error'), 'error');
     }
@@ -526,9 +526,21 @@ async function saveConfig() {
   }
 }
 
+let _loginURL = '';
+function startCountdown(url) {
+  _loginURL = url;
+  let n = 8;
+  const icons = ['⏳','⌛','⏳','⌛','⏳','⌛','⏳','⌛'];
+  const t = setInterval(() => {
+    n--;
+    document.getElementById('count').textContent = n;
+    document.getElementById('spin-icon').textContent = icons[n % icons.length];
+    if (n <= 0) { clearInterval(t); goToLogin(); }
+  }, 1000);
+}
 function goToLogin() {
-  const host = window.location.hostname; // preserves whatever IP/hostname the user opened the wizard with
-  window.location.href = `http://${host}:${state.port}/login`;
+  const url = _loginURL || `http://${window.location.hostname}:${state.port}/login`;
+  window.location.href = url;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
