@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/robfig/cron/v3"
-	"github.com/yourusername/clawdaemon/internal/db"
+	"github.com/Manjussha/clawdaemon/internal/db"
 )
 
 // TaskEnqueuer can enqueue a new task.

@@ -1,4 +1,4 @@
-module github.com/yourusername/clawdaemon
+module github.com/Manjussha/clawdaemon
 
 go 1.24.0
 

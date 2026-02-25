@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourusername/clawdaemon/internal/platform"
+	"github.com/Manjussha/clawdaemon/internal/platform"
 )
 
 // SetupStatus handles GET /api/setup/status

@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/yourusername/clawdaemon/internal/db"
+	"github.com/Manjussha/clawdaemon/internal/db"
 )
 
 // TelegramSender can send a text message via Telegram.

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/yourusername/clawdaemon/internal/db"
+	"github.com/Manjussha/clawdaemon/internal/db"
 )
 
 // ListTemplates handles GET /api/v1/templates.

@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/yourusername/clawdaemon/internal/db"
+	"github.com/Manjussha/clawdaemon/internal/db"
 )
 
 // NotifySender can send a notification message.

@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/yourusername/clawdaemon/internal/db"
+	"github.com/Manjussha/clawdaemon/internal/db"
 )
 
 func TestQueue_EnqueueDequeue(t *testing.T) {

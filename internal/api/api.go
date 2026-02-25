@@ -4,17 +4,17 @@ package api
 import (
 	"net/http"
 
-	"github.com/yourusername/clawdaemon/internal/api/handlers"
-	"github.com/yourusername/clawdaemon/internal/auth"
-	"github.com/yourusername/clawdaemon/internal/character"
-	"github.com/yourusername/clawdaemon/internal/config"
-	"github.com/yourusername/clawdaemon/internal/db"
-	"github.com/yourusername/clawdaemon/internal/notify"
-	"github.com/yourusername/clawdaemon/internal/queue"
-	"github.com/yourusername/clawdaemon/internal/scheduler"
-	"github.com/yourusername/clawdaemon/internal/webhook"
-	"github.com/yourusername/clawdaemon/internal/worker"
-	"github.com/yourusername/clawdaemon/internal/ws"
+	"github.com/Manjussha/clawdaemon/internal/api/handlers"
+	"github.com/Manjussha/clawdaemon/internal/auth"
+	"github.com/Manjussha/clawdaemon/internal/character"
+	"github.com/Manjussha/clawdaemon/internal/config"
+	"github.com/Manjussha/clawdaemon/internal/db"
+	"github.com/Manjussha/clawdaemon/internal/notify"
+	"github.com/Manjussha/clawdaemon/internal/queue"
+	"github.com/Manjussha/clawdaemon/internal/scheduler"
+	"github.com/Manjussha/clawdaemon/internal/webhook"
+	"github.com/Manjussha/clawdaemon/internal/worker"
+	"github.com/Manjussha/clawdaemon/internal/ws"
 )
 
 // Deps holds all dependencies injected into the API handlers.

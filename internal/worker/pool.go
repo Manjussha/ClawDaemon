@@ -6,13 +6,13 @@ import (
 	"log"
 	"sync"
 
-	"github.com/yourusername/clawdaemon/internal/character"
-	"github.com/yourusername/clawdaemon/internal/cli"
-	"github.com/yourusername/clawdaemon/internal/db"
-	"github.com/yourusername/clawdaemon/internal/notify"
-	"github.com/yourusername/clawdaemon/internal/queue"
-	"github.com/yourusername/clawdaemon/internal/tokenizer"
-	"github.com/yourusername/clawdaemon/internal/ws"
+	"github.com/Manjussha/clawdaemon/internal/character"
+	"github.com/Manjussha/clawdaemon/internal/cli"
+	"github.com/Manjussha/clawdaemon/internal/db"
+	"github.com/Manjussha/clawdaemon/internal/notify"
+	"github.com/Manjussha/clawdaemon/internal/queue"
+	"github.com/Manjussha/clawdaemon/internal/tokenizer"
+	"github.com/Manjussha/clawdaemon/internal/ws"
 )
 
 // Pool manages a set of concurrent Worker goroutines.

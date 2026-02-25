@@ -19,7 +19,7 @@ import (
 
 	"golang.org/x/term"
 
-	"github.com/yourusername/clawdaemon/internal/platform"
+	"github.com/Manjussha/clawdaemon/internal/platform"
 )
 
 // stdinReader is shared across all prompts. term.ReadPassword bypasses it via raw fd.

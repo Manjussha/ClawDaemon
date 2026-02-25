@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/yourusername/clawdaemon/internal/platform"
+	"github.com/Manjussha/clawdaemon/internal/platform"
 )
 
 // Status handles GET /api/v1/status.

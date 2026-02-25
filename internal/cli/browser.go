@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/yourusername/clawdaemon/internal/platform"
+	"github.com/Manjussha/clawdaemon/internal/platform"
 )
 
 // BrowserAdapter implements Worker for browser-based automation via Playwright.

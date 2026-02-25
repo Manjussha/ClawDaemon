@@ -5,15 +5,15 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/yourusername/clawdaemon/internal/character"
-	"github.com/yourusername/clawdaemon/internal/config"
-	"github.com/yourusername/clawdaemon/internal/db"
-	"github.com/yourusername/clawdaemon/internal/notify"
-	"github.com/yourusername/clawdaemon/internal/queue"
-	"github.com/yourusername/clawdaemon/internal/scheduler"
-	"github.com/yourusername/clawdaemon/internal/webhook"
-	"github.com/yourusername/clawdaemon/internal/worker"
-	"github.com/yourusername/clawdaemon/internal/ws"
+	"github.com/Manjussha/clawdaemon/internal/character"
+	"github.com/Manjussha/clawdaemon/internal/config"
+	"github.com/Manjussha/clawdaemon/internal/db"
+	"github.com/Manjussha/clawdaemon/internal/notify"
+	"github.com/Manjussha/clawdaemon/internal/queue"
+	"github.com/Manjussha/clawdaemon/internal/scheduler"
+	"github.com/Manjussha/clawdaemon/internal/webhook"
+	"github.com/Manjussha/clawdaemon/internal/worker"
+	"github.com/Manjussha/clawdaemon/internal/ws"
 )
 
 // Handler holds all shared dependencies for API handler methods.

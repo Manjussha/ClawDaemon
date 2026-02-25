@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/yourusername/clawdaemon/internal/platform"
+	"github.com/Manjussha/clawdaemon/internal/platform"
 )
 
 // Config holds all runtime configuration for ClawDaemon.

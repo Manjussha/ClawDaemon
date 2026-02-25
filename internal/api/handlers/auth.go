@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/yourusername/clawdaemon/internal/auth"
+	"github.com/Manjussha/clawdaemon/internal/auth"
 )
 
 // Login handles POST /api/v1/auth/login.

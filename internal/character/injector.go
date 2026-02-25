@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/yourusername/clawdaemon/internal/tokenizer"
+	"github.com/Manjussha/clawdaemon/internal/tokenizer"
 )
 
 // Injector builds the full context string for a task using the defined injection order.
