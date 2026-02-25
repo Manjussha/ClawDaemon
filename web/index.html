@@ -513,6 +513,43 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 </div>
 
+<!-- Task Detail Modal -->
+<div class="modal-overlay" id="task-detail-modal">
+  <div class="modal" style="width:700px;max-width:96vw">
+    <div class="modal-header">
+      Task <span id="td-id">#—</span> — <span id="td-title" style="color:var(--muted);font-weight:400"></span>
+      <button class="btn btn-sm" onclick="closeModal('task-detail-modal')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <!-- Meta row -->
+      <div style="display:flex;gap:16px;padding:12px 20px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);flex-wrap:wrap">
+        <span>Status: <strong id="td-status" style="color:var(--text)">—</strong></span>
+        <span>Worker: <strong id="td-worker" style="color:var(--text)">—</strong></span>
+        <span>CLI: <strong id="td-cli" style="color:var(--text)">—</strong></span>
+        <span>Priority: <strong id="td-priority" style="color:var(--text)">—</strong></span>
+        <span>Created: <strong id="td-created" style="color:var(--text)">—</strong></span>
+      </div>
+      <!-- Tabs -->
+      <div id="td-tabs" style="display:flex;border-bottom:1px solid var(--border);padding:0 20px">
+        <button class="td-tab active" onclick="tdTab('prompt')" style="padding:8px 14px;background:none;border:none;border-bottom:2px solid var(--primary);color:var(--primary);cursor:pointer;font-size:13px">Prompt</button>
+        <button class="td-tab" onclick="tdTab('output')" style="padding:8px 14px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-size:13px">Output</button>
+        <button class="td-tab" onclick="tdTab('diff')" style="padding:8px 14px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-size:13px">Diff</button>
+        <button class="td-tab" onclick="tdTab('logs')" style="padding:8px 14px;background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-size:13px">Logs</button>
+      </div>
+      <div style="padding:16px 20px">
+        <pre id="td-prompt"  style="white-space:pre-wrap;word-break:break-word;font-family:'Courier New',monospace;font-size:12px;max-height:360px;overflow-y:auto;background:#0a0e14;border:1px solid var(--border);border-radius:6px;padding:12px;color:var(--text)"></pre>
+        <pre id="td-output"  style="display:none;white-space:pre-wrap;word-break:break-word;font-family:'Courier New',monospace;font-size:12px;max-height:360px;overflow-y:auto;background:#0a0e14;border:1px solid var(--border);border-radius:6px;padding:12px;color:var(--text)"></pre>
+        <pre id="td-diff"    style="display:none;white-space:pre-wrap;word-break:break-word;font-family:'Courier New',monospace;font-size:12px;max-height:360px;overflow-y:auto;background:#0a0e14;border:1px solid var(--border);border-radius:6px;padding:12px;color:var(--text)"></pre>
+        <div id="td-logs"   style="display:none;max-height:360px;overflow-y:auto;background:#0a0e14;border:1px solid var(--border);border-radius:6px;padding:10px;font-family:'Courier New',monospace;font-size:12px"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-danger" id="td-delete-btn" onclick="deleteTaskFromDetail()">Delete</button>
+      <button class="btn" onclick="closeModal('task-detail-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- Add Skill Modal -->
 <div class="modal-overlay" id="add-skill-modal">
   <div class="modal">
@@ -728,20 +765,90 @@ async function loadTasks() {
   if (cnt) cnt.textContent = tasks.length;
 
   document.getElementById('tasks-tbody').innerHTML = tasks.length ? tasks.map(t => `
-    <tr>
+    <tr style="cursor:pointer" onclick="openTaskDetail(${t.id})">
       <td>${t.id}</td>
       <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.title)}</td>
       <td><span class="pill pill-${t.status}">${t.status}</span></td>
       <td>${t.worker_id ? 'W' + t.worker_id : '—'}</td>
       <td>${t.priority}</td>
       <td style="color:var(--muted);font-size:12px">${fmtDate(t.created_at)}</td>
-      <td><button class="btn btn-sm btn-danger" onclick="deleteTask(${t.id})">✕</button></td>
+      <td onclick="event.stopPropagation()"><button class="btn btn-sm btn-danger" onclick="deleteTask(${t.id})">✕</button></td>
     </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">No tasks</td></tr>';
 }
 
 async function deleteTask(id) {
   if (!confirm('Delete task #' + id + '?')) return;
   await del('/tasks/' + id);
+  loadTasks();
+}
+
+// ── Task Detail ───────────────────────────────────────────────────────────────
+let _tdTaskId = null;
+let _tdTab = 'prompt';
+
+async function openTaskDetail(id) {
+  _tdTaskId = id;
+  _tdTab = 'prompt';
+  openModal('task-detail-modal');
+  document.getElementById('td-id').textContent = '#' + id;
+  document.getElementById('td-title').textContent = '…';
+  ['prompt','output','diff'].forEach(k => document.getElementById('td-' + k).textContent = 'Loading…');
+  document.getElementById('td-logs').innerHTML = 'Loading…';
+  tdTab('prompt');
+
+  const [task, output, diff] = await Promise.all([
+    get('/tasks/' + id),
+    get('/tasks/' + id + '/output').catch(() => null),
+    get('/tasks/' + id + '/diff').catch(() => null),
+  ]);
+
+  const t = task?.data;
+  if (!t) return;
+  document.getElementById('td-title').textContent = t.title || '';
+  document.getElementById('td-status').textContent = t.status || '—';
+  document.getElementById('td-worker').textContent = t.worker_id ? 'W' + t.worker_id : '—';
+  document.getElementById('td-cli').textContent = t.cli_type || '—';
+  document.getElementById('td-priority').textContent = t.priority ?? '—';
+  document.getElementById('td-created').textContent = fmtDate(t.created_at);
+  document.getElementById('td-prompt').textContent = t.prompt || '(empty)';
+  document.getElementById('td-output').textContent = output?.data?.output || '(no output yet)';
+
+  const diffText = diff?.data?.diff || '';
+  const diffEl = document.getElementById('td-diff');
+  if (diffText) {
+    diffEl.innerHTML = diffText.split('\n').map(line => {
+      const col = line.startsWith('+') ? '#3fb950' : line.startsWith('-') ? '#f85149' : line.startsWith('@@') ? '#bc8cff' : 'var(--muted)';
+      return `<span style="color:${col}">${esc(line)}</span>`;
+    }).join('\n');
+  } else {
+    diffEl.textContent = '(no diff)';
+  }
+
+  // Load task logs
+  const logsRes = await get('/logs?task_id=' + id + '&limit=100');
+  const logs = logsRes?.data?.logs || [];
+  document.getElementById('td-logs').innerHTML = logs.length
+    ? logs.map(l => `<div class="log-line ${l.level === 'error' ? 'error' : l.level === 'warn' ? 'warn' : 'muted'}">${esc(fmtDate(l.created_at) + ' ' + l.message)}</div>`).join('')
+    : '<span style="color:var(--muted)">No logs</span>';
+}
+
+function tdTab(name) {
+  _tdTab = name;
+  document.querySelectorAll('.td-tab').forEach(b => {
+    const active = b.textContent.toLowerCase() === name;
+    b.style.borderBottomColor = active ? 'var(--primary)' : 'transparent';
+    b.style.color = active ? 'var(--primary)' : 'var(--muted)';
+  });
+  ['prompt','output','diff','logs'].forEach(k => {
+    const el = document.getElementById('td-' + k);
+    if (el) el.style.display = k === name ? '' : 'none';
+  });
+}
+
+async function deleteTaskFromDetail() {
+  if (!_tdTaskId || !confirm('Delete task #' + _tdTaskId + '?')) return;
+  await del('/tasks/' + _tdTaskId);
+  closeModal('task-detail-modal');
   loadTasks();
 }
 
@@ -766,7 +873,7 @@ async function submitTask() {
     refreshIfOnPage('tasks', loadTasks);
     refreshIfOnPage('dashboard', loadDashboard);
   } else {
-    alert('Error: ' + (res?.error || 'unknown'));
+    showError('Error: ' + (res?.error || 'unknown'));
   }
 }
 
@@ -774,19 +881,25 @@ async function submitTask() {
 async function loadWorkers() {
   const res = await get('/workers');
   const workers = res?.data?.workers || [];
-  document.getElementById('workers-tbody').innerHTML = workers.length ? workers.map(w => `
-    <tr>
+  document.getElementById('workers-tbody').innerHTML = workers.length ? workers.map(w => {
+    const running = w.status === 'running' || w.status === 'idle';
+    const toggleBtn = running
+      ? `<button class="btn btn-sm btn-danger" onclick="stopWorker(${w.id})">⏹ Stop</button>`
+      : `<button class="btn btn-sm" style="border-color:var(--success);color:var(--success)" onclick="startWorker(${w.id})">▶ Start</button>`;
+    return `<tr>
       <td>${w.id}</td>
       <td>${esc(w.name)}</td>
       <td><span class="badge badge-blue">${w.cli_type}</span></td>
       <td><span class="pill pill-${w.status || 'paused'}">${w.status || 'idle'}</span></td>
       <td>${w.max_parallel}</td>
       <td><span class="badge badge-${zoneBadge(w.budget_zone)}">${w.budget_zone || 'GREEN'}</span></td>
-      <td style="display:flex;gap:4px">
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        ${toggleBtn}
         <button class="btn btn-sm" onclick="healthCheck(${w.id})">Health</button>
         <button class="btn btn-sm btn-danger" onclick="deleteWorker(${w.id})">✕</button>
       </td>
-    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">No workers</td></tr>';
+    </tr>`;
+  }).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">No workers</td></tr>';
 
   // Populate dropdowns in modals
   const sel = document.getElementById('task-worker');
@@ -799,9 +912,22 @@ function zoneBadge(z) {
   return { GREEN: 'green', YELLOW: 'yellow', ORANGE: 'yellow', RED: 'red' }[z] || 'blue';
 }
 
+async function startWorker(id) {
+  const res = await post('/daemon/start', { worker_id: id });
+  if (res?.success) { showToast('Worker started'); loadWorkers(); }
+  else showError('Start failed: ' + (res?.error || 'unknown'));
+}
+
+async function stopWorker(id) {
+  const res = await post('/daemon/stop', { worker_id: id });
+  if (res?.success) { showToast('Worker stopped'); loadWorkers(); }
+  else showError('Stop failed: ' + (res?.error || 'unknown'));
+}
+
 async function healthCheck(id) {
   const res = await post('/workers/' + id + '/health');
-  alert(res?.success ? '✅ CLI healthy' : '❌ ' + (res?.error || 'unhealthy'));
+  if (res?.success) showToast('✅ CLI healthy');
+  else showError('❌ ' + (res?.error || 'unhealthy'));
 }
 
 async function deleteWorker(id) {
@@ -825,7 +951,7 @@ async function submitWorker() {
     closeModal('add-worker-modal');
     loadWorkers();
   } else {
-    alert('Error: ' + (res?.error || 'unknown'));
+    showError('Error: ' + (res?.error || 'unknown'));
   }
 }
 
@@ -865,7 +991,7 @@ async function submitProject() {
   };
   const res = await post('/projects', body);
   if (res?.success) { closeModal('add-project-modal'); loadProjects(); }
-  else alert('Error: ' + (res?.error || 'unknown'));
+  else showError('Error: ' + (res?.error || 'unknown'));
 }
 
 // ── Schedules ────────────────────────────────────────────────────────────────
@@ -905,7 +1031,7 @@ async function submitSchedule() {
   };
   const res = await post('/schedules', body);
   if (res?.success) { closeModal('add-schedule-modal'); loadSchedules(); }
-  else alert('Error: ' + (res?.error || 'unknown'));
+  else showError('Error: ' + (res?.error || 'unknown'));
 }
 
 // ── Logs ─────────────────────────────────────────────────────────────────────
@@ -945,7 +1071,7 @@ async function saveCharFile() {
   const file = document.getElementById('char-file-select').value;
   const content = document.getElementById('char-content').value;
   const res = await put('/character/' + file, { content });
-  if (!res?.success) alert('Error: ' + (res?.error || 'unknown'));
+  if (!res?.success) showError('Error: ' + (res?.error || 'unknown'));
   else showToast('Saved!');
 }
 
@@ -979,7 +1105,7 @@ async function editSkill(name) {
 async function saveSkill() {
   const content = document.getElementById('skill-content').value;
   const res = await put('/character/skills/' + encodeURIComponent(currentSkill), { content });
-  if (!res?.success) alert('Error: ' + (res?.error || 'unknown'));
+  if (!res?.success) showError('Error: ' + (res?.error || 'unknown'));
   else showToast('Saved!');
 }
 
@@ -997,10 +1123,10 @@ async function deleteSkill() {
 async function submitSkill() {
   const name = document.getElementById('new-skill-name').value.trim();
   const content = document.getElementById('new-skill-content').value;
-  if (!name) { alert('Name required'); return; }
+  if (!name) { showError('Name required'); return; }
   const res = await post('/character/skills', { name, content });
   if (res?.success) { closeModal('add-skill-modal'); loadSkills(); }
-  else alert('Error: ' + (res?.error || 'unknown'));
+  else showError('Error: ' + (res?.error || 'unknown'));
 }
 
 // ── Webhooks ─────────────────────────────────────────────────────────────────
@@ -1025,7 +1151,7 @@ async function toggleWebhook(id, enabled) { await put('/webhooks/' + id, { enabl
 
 async function testWebhook(id) {
   const res = await post('/webhooks/' + id + '/test');
-  alert(res?.success ? '✅ Webhook fired OK' : '❌ ' + (res?.error || 'failed'));
+  res?.success ? showToast('✅ Webhook fired OK') : showError('❌ ' + (res?.error || 'failed'));
 }
 
 async function deleteWebhook(id) {
@@ -1043,7 +1169,7 @@ async function submitWebhook() {
   };
   const res = await post('/webhooks', body);
   if (res?.success) { closeModal('add-webhook-modal'); loadWebhooks(); }
-  else alert('Error: ' + (res?.error || 'unknown'));
+  else showError('Error: ' + (res?.error || 'unknown'));
 }
 
 // ── Templates ────────────────────────────────────────────────────────────────
@@ -1074,7 +1200,7 @@ async function submitTemplate() {
   };
   const res = await post('/templates', body);
   if (res?.success) { closeModal('add-template-modal'); loadTemplates(); }
-  else alert('Error: ' + (res?.error || 'unknown'));
+  else showError('Error: ' + (res?.error || 'unknown'));
 }
 
 // ── Token Usage ───────────────────────────────────────────────────────────────
@@ -1191,7 +1317,7 @@ async function loadSettings() {
 async function saveSetting(key) {
   const val = document.getElementById('setting-' + key).value;
   const res = await put('/settings/' + key, { value: val });
-  if (!res?.success) alert('Error: ' + (res?.error || 'unknown'));
+  if (!res?.success) showError('Error: ' + (res?.error || 'unknown'));
   else showToast('Saved!');
 }
 
@@ -1257,14 +1383,26 @@ function showToast(msg) {
   setTimeout(() => t.remove(), 2000);
 }
 
+function showError(msg) {
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#f85149;color:#fff;padding:8px 20px;border-radius:6px;font-weight:600;z-index:300;cursor:pointer;max-width:80vw;text-align:center';
+  t.textContent = msg;
+  t.onclick = () => t.remove();
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 5000);
+}
+
 // ── Init ─────────────────────────────────────────────────────────────────────
 connectWS();
 loadDashboard();
 
-// Auto-refresh dashboard stats every 30s
+// Auto-refresh active page every 10s (tasks & workers get live updates)
 setInterval(() => {
-  if (document.getElementById('page-dashboard').classList.contains('active')) loadDashboard();
-}, 30000);
+  const active = document.querySelector('.page.active')?.id?.replace('page-', '');
+  if (!active) return;
+  const fn = pageHandlers[active];
+  if (fn) fn();
+}, 10000);
 </script>
 </body>
 </html>
