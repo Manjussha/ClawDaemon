@@ -4,6 +4,7 @@ package wizard
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -394,38 +395,59 @@ func stepTelegram() (token, chatID string, err error) {
 	fmt.Println("  Waiting up to 3 minutes... (press Enter to skip)")
 	fmt.Println()
 
-	type result struct {
+	type pollResult struct {
 		id        int64
 		firstName string
-		skipped   bool
 	}
-	ch := make(chan result, 1)
+	pollCh := make(chan pollResult, 1)
 
-	// Poll goroutine.
+	// Poll goroutine — long-polls Telegram getUpdates.
 	go func() {
 		id, name, err := telegramPollChatID(token, 3*time.Minute)
-		if err != nil || id == 0 {
-			ch <- result{skipped: true}
-			return
+		if err == nil && id != 0 {
+			pollCh <- pollResult{id: id, firstName: name}
 		}
-		ch <- result{id: id, firstName: name}
 	}()
 
-	// Skip goroutine — user presses Enter.
+	// Skip goroutine — reads directly from os.Stdin (not the shared bufio reader)
+	// so it cannot steal bytes meant for later prompts.
+	skipCh := make(chan struct{}, 1)
 	go func() {
-		stdinReader.ReadString('\n')
-		ch <- result{skipped: true}
+		buf := make([]byte, 1)
+		for {
+			n, err := os.Stdin.Read(buf)
+			if err != nil {
+				return
+			}
+			if n > 0 && (buf[0] == '\n' || buf[0] == '\r') {
+				skipCh <- struct{}{}
+				return
+			}
+		}
 	}()
 
-	r := <-ch
-	if r.skipped || r.id == 0 {
+	var paired pollResult
+	select {
+	case paired = <-pollCh:
+		// fall through to success path
+	case <-skipCh:
 		fmt.Println("  " + c("\033[90m", "Skipped — set TELEGRAM_CHAT_ID in .env or Settings later."))
+		return token, "", nil
+	case <-time.After(3 * time.Minute):
+		fmt.Println("  " + c("\033[90m", "Timed out — set TELEGRAM_CHAT_ID in .env or Settings later."))
 		return token, "", nil
 	}
 
-	chatID = strconv.FormatInt(r.id, 10)
+	chatID = strconv.FormatInt(paired.id, 10)
 	fmt.Printf("  %s Paired with %s  (Chat ID: %s)\n",
-		c("\033[32m", "✓"), r.firstName, chatID)
+		c("\033[32m", "✓"), paired.firstName, chatID)
+
+	// Send a confirmation message to the paired user immediately.
+	_ = telegramSendMessage(token, paired.id, fmt.Sprintf(
+		"🐾 *ClawDaemon paired\\!*\n\nHi %s\\! The setup wizard has connected successfully\\.\n\nChat ID: `%s`\n\n*What\\'s next:*\n• Finish the setup wizard\n• Run `clawdaemon` to start\n• Send /status to check daemon health",
+		telegramEscape(paired.firstName), chatID,
+	))
+
 	return token, chatID, nil
 }
 
@@ -612,6 +634,42 @@ func telegramPollChatID(token string, timeout time.Duration) (chatID int64, firs
 		return upd.Message.Chat.ID, upd.Message.From.FirstName, nil
 	}
 	return 0, "", fmt.Errorf("timeout")
+}
+
+// telegramSendMessage sends a MarkdownV2 message to a chat via the Bot API.
+func telegramSendMessage(token string, chatID int64, text string) error {
+	payload, err := json.Marshal(map[string]any{
+		"chat_id":    chatID,
+		"text":       text,
+		"parse_mode": "MarkdownV2",
+	})
+	if err != nil {
+		return err
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Post(
+		"https://api.telegram.org/bot"+token+"/sendMessage",
+		"application/json",
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
+}
+
+// telegramEscape escapes special characters for MarkdownV2.
+func telegramEscape(s string) string {
+	special := `\_*[]()~` + "`" + `>#+-=|{}.!`
+	var b strings.Builder
+	for _, ch := range s {
+		if strings.ContainsRune(special, ch) {
+			b.WriteRune('\\')
+		}
+		b.WriteRune(ch)
+	}
+	return b.String()
 }
 
 // ── Input helpers ─────────────────────────────────────────────────────────────
