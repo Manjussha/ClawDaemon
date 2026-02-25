@@ -30,7 +30,25 @@ case "$OS" in
 esac
 
 FILENAME="${BINARY}-${OS}-${ARCH}"
-URL="https://github.com/${REPO}/releases/latest/download/${FILENAME}"
+
+# ── Resolve latest release tag (works for pre-releases too) ───────────────────
+API="https://api.github.com/repos/${REPO}/releases/latest"
+if command -v curl >/dev/null 2>&1; then
+  TAG=$(curl -fsSL "$API" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')
+elif command -v wget >/dev/null 2>&1; then
+  TAG=$(wget -qO- "$API" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p')
+else
+  echo "  Error: curl or wget is required."
+  exit 1
+fi
+
+if [ -z "$TAG" ]; then
+  echo "  Error: could not determine latest release tag."
+  echo "  Check https://github.com/${REPO}/releases"
+  exit 1
+fi
+
+URL="https://github.com/${REPO}/releases/download/${TAG}/${FILENAME}"
 
 # ── Install ───────────────────────────────────────────────────────────────────
 echo ""
@@ -38,6 +56,7 @@ echo "  ClawDaemon Installer"
 echo "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  OS:   $OS"
 echo "  Arch: $ARCH"
+echo "  Tag:  $TAG"
 echo "  Dest: $INSTALL_DIR/$BINARY"
 echo ""
 
@@ -48,9 +67,6 @@ if command -v curl >/dev/null 2>&1; then
   curl -fsSL "$URL" -o "$INSTALL_DIR/$BINARY"
 elif command -v wget >/dev/null 2>&1; then
   wget -q "$URL" -O "$INSTALL_DIR/$BINARY"
-else
-  echo "  Error: curl or wget is required."
-  exit 1
 fi
 
 chmod +x "$INSTALL_DIR/$BINARY"

@@ -14,13 +14,25 @@ $INSTALL_DIR = "$env:LOCALAPPDATA\Programs\ClawDaemon"
 # ── Detect architecture ───────────────────────────────────────────────────────
 $ARCH = if ([System.Environment]::Is64BitOperatingSystem) { "amd64" } else { "386" }
 $FILENAME = "clawdaemon-windows-$ARCH.exe"
-$URL = "https://github.com/$REPO/releases/latest/download/$FILENAME"
+
+# Resolve latest release tag (works for pre-releases too)
+try {
+    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO/releases/latest" -UseBasicParsing
+    $TAG = $release.tag_name
+} catch {
+    Write-Host "  Error: could not fetch latest release tag: $_" -ForegroundColor Red
+    Write-Host "  Check https://github.com/$REPO/releases"
+    exit 1
+}
+
+$URL = "https://github.com/$REPO/releases/download/$TAG/$FILENAME"
 
 Write-Host ""
 Write-Host "  ClawDaemon Installer" -ForegroundColor Cyan
 Write-Host "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 Write-Host "  OS:   Windows"
 Write-Host "  Arch: $ARCH"
+Write-Host "  Tag:  $TAG"
 Write-Host "  Dest: $INSTALL_DIR\$BINARY"
 Write-Host ""
 
